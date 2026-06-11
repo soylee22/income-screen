@@ -22,7 +22,8 @@ SOURCES = {
     "DAX": ("https://en.wikipedia.org/wiki/DAX", ".DE"),
 }
 EXTRAS = ["NESN.SW", "NOVN.SW", "ROG.SW", "ZURN.SW", "ABBN.SW",   # CH majors
-          "0941.HK", "0883.HK", "2628.HK"]                          # HK income names
+          "0941.HK", "0883.HK", "2628.HK",                          # HK income names
+          "BTI", "MO", "PM", "IMBBY", "JAPAY"]                       # tobacco (Lee's picks)
 
 
 def constituents(url, suffix):

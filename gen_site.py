@@ -27,10 +27,13 @@ rows = [r for r in store.values() if "ticker" in r]
 df = S.apply_gates(pd.DataFrame(rows))
 df["country"] = df["ticker"].map(country)
 surv = df[df["fails"] == ""]
-ranked = S.rank(surv)
+ranked = S.rank(surv, mode="composite")
+ni = S.rank(surv, mode="net_income")
 rank_map = {t: i + 1 for i, t in enumerate(ranked["ticker"])}
+ni_rank = {t: i + 1 for i, t in enumerate(ni["ticker"])}   # net-income view order
 score_map = dict(zip(ranked["ticker"], ranked["score"]))
 cheap_map = dict(zip(ranked["ticker"], ranked["cheap_ratio"]))
+growth_map = dict(zip(ranked["ticker"], ranked["growth"]))
 
 fetched_dates = [r.get("_fetched") for r in rows if r.get("_fetched")]
 scrape_date = max(fetched_dates) if fetched_dates else date.today().isoformat()
@@ -46,17 +49,27 @@ def num(x, d=2):
 table = []
 for _, r in df.iterrows():
     t = r["ticker"]
+    roic = r.get("roic")
+    roic = roic if (roic is not None and not pd.isna(roic)) else None
+    qual = roic if roic is not None else (r.get("roa") if r["lane"] == "A" else r.get("roe"))
+    qual = qual if (qual is not None and not pd.isna(qual)) else None
+    gval = growth_map.get(t)
+    if gval is None or pd.isna(gval):
+        gval = r.get("div_growth")
+    gval = gval if (gval is not None and not pd.isna(gval)) else None
     table.append({
-        "rank": rank_map.get(t, ""),
+        "rank": rank_map.get(t, ""), "nirank": ni_rank.get(t, ""),
         "ticker": t, "name": (r.get("name") or "")[:32], "country": r["country"],
         "sector": r.get("sector") or "", "lane": r["lane"],
-        "yield": num(r.get("yield_pct")), "y5avg": num(r.get("yield_5y_avg")),
-        "cheap": num(cheap_map.get(t)), "roe": num(r.get("roe"), 3),
-        "cagr": num(r.get("div_cagr5"), 3),
-        "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
+        "yield": num(r.get("yield_pct")),
         "wht": int(S.WHT_BY_COUNTRY.get(S.country(t), 0.20) * 100),
         "nety": num(r.get("yield_pct") * (1 - S.WHT_BY_COUNTRY.get(S.country(t), 0.20)), 2)
         if r.get("yield_pct") is not None else None,
+        "cheap": num(cheap_map.get(t)),
+        "roic": num(roic * 100, 0) if roic is not None else None,
+        "qual": num(qual * 100, 0) if qual is not None else None,
+        "grow": num(gval * 100, 0) if gval is not None else None,
+        "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
         "years": r.get("div_years"),
         "status": "PASS" if r["fails"] == "" else "reject",
         "fails": r["fails"], "score": num(score_map.get(t), 3),
@@ -83,15 +96,16 @@ for lbl, kw in [("Yield floor 2.5% (base 3.0)", {"YIELD_MIN": 2.5}),
                 ("Yield floor 3.5%", {"YIELD_MIN": 3.5}),
                 ("Yield cap 7% (base 8.0)", {"YIELD_MAX": 7.0}),
                 ("Yield cap 9%", {"YIELD_MAX": 9.0}),
-                ("ROE floor 8% (base 10)", {"MIN_ROE": 0.08}),
-                ("ROE floor 12%", {"MIN_ROE": 0.12}),
+                ("ROA floor 4% (base 5)", {"MIN_ROA_A": 0.04}),
+                ("ROIC floor 6% (base 8)", {"MIN_ROIC_A": 0.06}),
+                ("ROIC floor 10%", {"MIN_ROIC_A": 0.10}),
                 ("FCF cover 1.0x (base 1.3)", {"MIN_FCF_COVER": 1.0}),
                 ("FCF cover 1.5x", {"MIN_FCF_COVER": 1.5}),
-                ("Debt/EBITDA 3x (base 4)", {"MAX_DEBT_EBITDA": 3.0}),
-                ("Record 8y (base 10)", {"MIN_DIV_YEARS": 8}),
-                ("Record 15y", {"MIN_DIV_YEARS": 15}),
-                ("Size floor $5bn (base 10)", {"MIN_MCAP_USD": 5e9}),
-                ("Size floor $25bn", {"MIN_MCAP_USD": 25e9})]:
+                ("Net leverage 3x (base 4)", {"MAX_NET_LEVERAGE": 3.0}),
+                ("Tax tilt 0.4 (base 0.7)", {"TAX_TILT": 0.4}),
+                ("Tax tilt 1.2", {"TAX_TILT": 1.2}),
+                ("Record 15y (base 10)", {"MIN_DIV_YEARS": 15}),
+                ("Size floor $25bn (base 15)", {"MIN_MCAP_USD": 25e9})]:
     variant(lbl, **kw)
 
 n_surv, n_univ = len(surv), len(df)
@@ -106,10 +120,14 @@ sens_rows = "".join(
     f"<td class='{'bad' if s['overlap']<0.6 else 'ok' if s['overlap']<0.85 else 'good'}'>"
     f"{int(s['overlap']*100)}%</td></tr>" for s in sens)
 
+comp_top = ", ".join(ranked["ticker"].head(3))
+ni_top = ", ".join(ni["ticker"].head(3))
+
 DOC = HERE / "DOCTRINE.html"  # extracted prose, written below
 html = DOC.read_text().replace("{{SCRAPE}}", scrape_date)\
     .replace("{{NSURV}}", str(n_surv)).replace("{{NUNIV}}", str(n_univ))\
     .replace("{{COUNTRY_ROWS}}", country_rows).replace("{{SENS_ROWS}}", sens_rows)\
+    .replace("{{COMP_TOP}}", comp_top).replace("{{NI_TOP}}", ni_top)\
     .replace("{{DATA}}", json.dumps(table)).replace("{{GENERATED}}", date.today().isoformat())
 (DOCS / "index.html").write_text(html)
 print(f"wrote {DOCS/'index.html'} ({n_surv}/{n_univ} survivors, scraped {scrape_date})")
