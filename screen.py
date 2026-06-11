@@ -35,6 +35,8 @@ MAX_CUT = 0.20                            # >20% YoY fall in any of last 10 comp
 MIN_ROE = 0.10                            # lane A (0.08 lane B)
 MIN_FCF_COVER = 1.3                       # FCF / dividends paid, lane A only (~payout <= 77% of FCF)
 MAX_DEBT_EBITDA = 4.0                     # lane A only
+MOM_12M_MIN = -0.10                       # falling-knife filter: drop names down >10% over 12m
+MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day average
 
 WEIGHTS = {"cheap": 0.35, "quality": 0.30, "growth": 0.20, "safety": 0.15}
 
@@ -121,6 +123,10 @@ def fetch_one(symbol):
         "div_years": years,
         "uncut_10y": uncut,
         "div_cagr5": cagr5,
+        "mom_12m": info.get("52WeekChange"),               # trailing 1y price change
+        "px": info.get("currentPrice") or info.get("regularMarketPrice"),
+        "sma200": info.get("twoHundredDayAverage"),
+        "wk52high": info.get("fiftyTwoWeekHigh"),
     }
 
 
@@ -183,13 +189,19 @@ def apply_gates(df):
         if r["div_years"] < MIN_DIV_YEARS: fails.append("record<10y")
         if not r["uncut_10y"]: fails.append("cut_in_10y")
         min_roe = MIN_ROE if r["lane"] == "A" else 0.08
-        if r["roe"] is None or r["roe"] < min_roe: fails.append("roe")
+        if pd.isna(r["roe"]) or r["roe"] is None or r["roe"] < min_roe: fails.append("roe")
         if r["lane"] == "A":
             divs_paid = (r["mcap_local"] or 0) * (y or 0) / 100
             if not r["fcf"] or divs_paid <= 0 or r["fcf"] / divs_paid < MIN_FCF_COVER:
                 fails.append("fcf_cover")
             if r["ebitda"] and r["ebitda"] > 0 and r["total_debt"] is not None:
                 if r["total_debt"] / r["ebitda"] > MAX_DEBT_EBITDA: fails.append("leverage")
+        # falling-knife filter: drop names in a clear downtrend (both lanes)
+        mom, px, sma = r.get("mom_12m"), r.get("px"), r.get("sma200")
+        downtrend = (mom is not None and mom < MOM_12M_MIN) or \
+                    (px and sma and (px / sma - 1) < MOM_VS_200D_MIN)
+        if downtrend:
+            fails.append("downtrend")
         return ",".join(fails)
 
     df["fails"] = df.apply(gate, axis=1)
@@ -242,8 +254,9 @@ def main():
     out = HERE / f"screen-{date.today().isoformat()}.csv"
     ranked.to_csv(out, index=False)
 
+    ranked["mom12m_pct"] = (pd.to_numeric(ranked["mom_12m"], errors="coerce") * 100).round(1)
     cols = ["ticker", "name", "sector", "lane", "yield_pct", "yield_5y_avg",
-            "cheap_ratio", "roe", "div_cagr5", "fcf_cover", "div_years", "score"]
+            "cheap_ratio", "roe", "div_cagr5", "mom12m_pct", "div_years", "score"]
     pd.set_option("display.width", 200)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)} (gates: mcap>=$10bn, yield {YIELD_MIN}-{YIELD_MAX}%, "
           f"10y+ uncut record, ROE, lane-A FCF cover & leverage) ===\n")

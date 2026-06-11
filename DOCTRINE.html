@@ -216,7 +216,7 @@
   <div class="metrics">
     <div class="m"><div class="v">{{NSURV}}</div><div class="k">Survivors</div></div>
     <div class="m"><div class="v">{{NUNIV}}</div><div class="k">Universe</div></div>
-    <div class="m"><div class="v">6</div><div class="k">Hard gates</div></div>
+    <div class="m"><div class="v">7</div><div class="k">Hard gates</div></div>
     <div class="m"><div class="v">4</div><div class="k">Rank factors</div></div>
   </div>
 
@@ -250,6 +250,7 @@
           <li><strong>Quality</strong>: ROE at least 10% (8% for financials)</li>
           <li><strong>Cash cover</strong> (non-financials): free cash flow at least 1.3&times; dividends</li>
           <li><strong>Leverage</strong> (non-financials): debt/EBITDA at most 4</li>
+          <li><strong>Trend</strong>: not in a clear downtrend, 12-month return better than minus 10% and not more than 12% below its 200-day average (the falling-knife filter)</li>
         </ol>
       </div>
       <div>
@@ -278,8 +279,9 @@
     <div class="callout">
       <p class="tag">Load-bearing assumption</p>
       <h3>Cheapness cannot tell "on sale" from "in decline"</h3>
-      <p>The cheapness score <em>cannot</em> distinguish a sound business temporarily on sale from one correctly priced for decline. A yield at 2&times; its own average means the price halved relative to the dividend, which is either an opportunity or a warning. Our three quality gates (ROE intact, dividend covered, record unbroken) are the <strong>proxy</strong> for "cheap not impaired": an impaired business usually shows a cracked ROE, thin cover, or a prior cut. But these are <strong>lagging</strong>. The residual risk the screen cannot see is a business whose moat is eroding but whose numbers have not broken yet. That is a forward judgement no screen can make.</p>
-      <p><strong>So the screen ranks candidates, it does not vouch for them. The forward-moat call stays with you.</strong> Worked example: General Mills (7.2% yield, 2&times; its average) and Capgemini (2&times;) top the cheapness ranking, and both fell for real reasons (GM volume and pricing worries; Capgemini caught in the IT-services de-rating). The screen says "the fundamentals have not cracked yet." Only you can add "and the moat will hold."</p>
+      <p>The cheapness score <em>cannot</em> distinguish a sound business temporarily on sale from one correctly priced for decline. A yield at 2&times; its own average means the price halved relative to the dividend, which is either an opportunity or a warning. Without a guardrail, cheapness alone turns the ranking into a falling-knife detector: in an early build the top three names (Capgemini, 3i, Accenture) were all down 35 to 48% over the prior year, ranked top precisely because they had crashed hardest.</p>
+      <p>The <strong>trend gate</strong> (gate 7) is the fix: it drops any name in a clear downtrend (12-month return worse than minus 10%, or sitting more than 12% below its 200-day average), so the screen no longer recommends a stock simply for collapsing. Trend is a poor signal for <em>timing</em> an entry (waiting for a dip loses), but a good one for <em>excluding</em> broken names from selection (Han-Yang-Zhou 2013).</p>
+      <p><strong>Residual risk the gate still cannot catch:</strong> a business whose moat is eroding but whose price and numbers have not broken yet. A mild dip that passes the trend gate can still be an early-stage trap. So the screen ranks candidates, it does not vouch for them. The forward-moat call stays with you.</p>
     </div>
   </section>
 
@@ -341,7 +343,7 @@
         <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
         <th data-k="yield">Yld%</th><th data-k="y5avg">5y avg</th><th data-k="cheap">Cheap</th>
-        <th data-k="roe">ROE</th><th data-k="cagr">DivCAGR</th><th data-k="years">Yrs</th>
+        <th data-k="roe">ROE</th><th data-k="cagr">DivCAGR</th><th data-k="mom">12m%</th><th data-k="years">Yrs</th>
         <th data-k="score">Score</th><th data-k="status">Status</th><th data-k="fails">Fails</th>
       </tr></thead>
       <tbody id="tb"></tbody>
@@ -379,8 +381,9 @@ function render(){
     <td>${r.country}</td><td>${r.sector}</td>
     <td>${cell(r.yield)}</td><td>${cell(r.y5avg)}</td>
     <td>${r.cheap&&r.cheap>1.3?'<span class="cheapy">'+r.cheap+'</span>':cell(r.cheap)}</td>
-    <td>${cell(r.roe)}</td><td>${cell(r.cagr)}</td><td>${cell(r.years)}</td>
-    <td>${cell(r.score)}</td>
+    <td>${cell(r.roe)}</td><td>${cell(r.cagr)}</td>
+    <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>
+    <td>${cell(r.years)}</td><td>${cell(r.score)}</td>
     <td><span class="pill ${r.status==='PASS'?'pass':'rej'}">${r.status}</span></td>
     <td class="failtxt">${r.fails}</td></tr>`).join('');
   count.textContent=rows.length+' / '+DATA.length+' names';
