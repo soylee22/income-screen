@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Income Snowball Screen</title>
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#11151c; --line:#1f2630; --ink:#dfe5ec; --dim:#8a95a3;
+    --silver:#c0c0c0; --accent:#4a9eff; --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,monospace;
+    --sans:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 28px 96px}
+  header{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:8px}
+  h1{font-size:30px;letter-spacing:-.02em;margin:0 0 6px;font-weight:650}
+  h1 .accent{color:var(--silver)}
+  .sub{color:var(--dim);font-family:var(--mono);font-size:12.5px;letter-spacing:.02em}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:var(--accent);
+    margin:46px 0 14px;font-weight:650;border-left:2px solid var(--accent);padding-left:11px}
+  h3{font-size:16px;margin:26px 0 8px;font-weight:600}
+  p{margin:11px 0;color:#c5cdd8}
+  strong{color:var(--ink);font-weight:620}
+  .lead{font-size:16.5px;color:var(--ink)}
+  ul,ol{padding-left:22px;margin:11px 0}
+  li{margin:6px 0;color:#c5cdd8}
+  code{font-family:var(--mono);font-size:12.5px;background:#0e1218;border:1px solid var(--line);
+    padding:1px 6px;border-radius:4px;color:var(--silver)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:680;font-family:var(--mono);color:var(--silver)}
+  .stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-top:3px}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+    cursor:pointer;user-select:none;position:sticky;top:0;background:var(--bg)}
+  td{font-family:var(--mono);font-size:12.5px}
+  .callout{background:#10151d;border:1px solid var(--line);border-left:3px solid var(--warn);
+    border-radius:7px;padding:15px 19px;margin:18px 0}
+  .callout.key{border-left-color:var(--accent)}
+  .callout h3{margin-top:0;color:var(--silver)}
+  .good{color:var(--good)} .ok{color:var(--warn)} .bad{color:var(--bad)}
+  .pass{color:var(--good);font-weight:600} .rej{color:var(--dim)}
+  .controls{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0;align-items:center}
+  input,select{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);font-size:13px;padding:8px 11px;border-radius:6px}
+  input{flex:1;min-width:200px}
+  .tablewrap{max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .chip{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:10px;
+    background:#161b22;border:1px solid var(--line);color:var(--dim);font-family:var(--mono)}
+  footer{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--dim);font-size:12px;font-family:var(--mono)}
+  a{color:var(--accent);text-decoration:none}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+  @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.twocol{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="wrap">
+
+<header>
+  <h1>Income Snowball <span class="accent">Acquisition Screen</span></h1>
+  <div class="sub">Evidence-anchored selection engine &middot; data scraped {{SCRAPE}} &middot; page built {{GENERATED}}</div>
+</header>
+
+<div class="grid">
+  <div class="stat"><div class="n">{{NSURV}}</div><div class="l">Survivors</div></div>
+  <div class="stat"><div class="n">{{NUNIV}}</div><div class="l">Universe</div></div>
+  <div class="stat"><div class="n">6</div><div class="l">Hard gates</div></div>
+  <div class="stat"><div class="n">4</div><div class="l">Ranking factors</div></div>
+</div>
+
+<h2>What we are actually trying to do</h2>
+<p class="lead">This is not a "beat the market" engine. The objective is to assemble, over years of monthly purchases, a <strong>growing and durable stream of dividend income</strong>, while not overpaying at the moment of purchase. Total return is a constraint (do not destroy capital), not the goal. The single decision this tool informs is narrow and concrete: <em>"I have a fixed amount this month. Which one name do I buy?"</em></p>
+<p>Everything below serves that question. The screen produces a ranked candidate list; it does not produce a portfolio and it does not promise alpha. Its real job is twofold: stop us buying yield traps, and impose the monthly buying habit that the evidence says matters more than any clever entry.</p>
+
+<h2>Who is in the pool</h2>
+<p>~{{NUNIV}} large caps: <strong>FTSE 100 + S&amp;P 500 + CAC 40 + DAX</strong>, plus Swiss and Hong Kong majors. Large-cap only, deliberately. Every piece of evidence that <em>supports</em> this approach (the quality premium, dividend-grower outperformance) lives in large, liquid names; every timing anomaly that <em>fails</em> lives in small, illiquid ones. Constituents are scraped from Wikipedia and date-stamped, so the universe rebuilds itself as indices reconstitute.</p>
+<div class="callout key">
+  <h3>The big finding hiding in the universe: almost no UK survives</h3>
+  <p>Of 100 FTSE 100 names, 5 pass. That is not a bug, it is the screen working. The UK large-cap market is bifurcated: <strong>low-yield quality-growth</strong> (AstraZeneca 1.7%, RELX 2.6%, Rolls 0.8%) that fails the 3% income floor, and <strong>high-yield-but-cut-prone</strong> (all five big banks suspended in 2020 under PRA instruction; Shell and BP cut in 2020; miners, telecoms and utilities pay variable dividends) that fails the unbroken-record gate. The quality-and-sustained-and-yielding middle is genuinely thin in the UK. IUKD, the pure UK high-yield index, is the textbook long-run underperformer for exactly this reason. <strong>Implication: this is a global quality-income screen. UK exposure should come from your index core, not from this sleeve.</strong></p>
+</div>
+
+<h2>The checklist (gates, then rank)</h2>
+<p>A name must clear every gate. Survivors are then scored 0 to 1 on a weighted composite.</p>
+<div class="twocol">
+  <div>
+    <h3>Gates (binary, all required)</h3>
+    <ol>
+      <li><strong>Size</strong> &ge; $10bn market cap (FX-converted)</li>
+      <li><strong>Yield</strong> between 3% and 8%</li>
+      <li><strong>Record</strong>: 10+ years paying, no &gt;20% annual cut in the last 10 (2020/21 COVID/PRA cuts forgiven if recovered to &ge;90% of 2019)</li>
+      <li><strong>Quality</strong>: ROE &ge; 10% (8% for financials)</li>
+      <li><strong>Cash cover</strong> (non-financials): free cash flow &ge; 1.3&times; dividends</li>
+      <li><strong>Leverage</strong> (non-financials): debt/EBITDA &le; 4</li>
+    </ol>
+  </div>
+  <div>
+    <h3>Ranking (survivors only)</h3>
+    <ul>
+      <li><strong>35% Cheapness</strong>: current yield vs the stock's own 5-year average yield</li>
+      <li><strong>30% Quality</strong>: ROE + gross margin</li>
+      <li><strong>20% Dividend growth</strong>: 5-year dividend CAGR (capped 15%)</li>
+      <li><strong>15% Safety</strong>: FCF cover headroom</li>
+    </ul>
+    <p class="sub">Two lanes: financials and REITs skip the cash-cover and leverage gates (their FCF figures are meaningless) and lean on the record instead. This is what makes the same code hold from Zurich Insurance to General Mills.</p>
+  </div>
+</div>
+
+<h2>Why we think it works (and where it is only common sense)</h2>
+<p>The claim has two parts, and they have different evidential strength.</p>
+<p><strong>Selection is evidence, not vibes.</strong> The gates encode the one robust empirical finding in this whole area: dividend growers and quality compounders beat high-yielders and cutters. Ned Davis Research (S&amp;P 500, 1973 to 2025): dividend growers returned 10.2%/yr at lower volatility; cutters returned <em>minus</em> 0.96%/yr. Novy-Marx (2013) on gross profitability and Asness-Frazzini-Pedersen on quality-minus-junk give the academic spine. The live ETF record agrees: quality-dividend (DGRW) 10.1%/yr real since 2013 versus yield-weighted (SDY) 6.2%.</p>
+<p><strong>Timing is mostly common sense plus one weak signal.</strong> The cheapness term (yield vs own history) is the only entry signal with any support, and even that is a value tilt in disguise, not alpha. We explicitly do <em>not</em> use RSI, chart patterns, or "wait for the dip", because those carry <em>negative</em> evidence for a buy-and-hold accumulator (Marshall-Cahan-Cahan 2008; Han-Yang-Zhou 2013). Waiting in cash for a better entry loses ~68-70% of the time even with perfect foresight (Maggiulli; Vanguard).</p>
+<p><strong>Honest bound.</strong> Dividends are not free money (Hartzmark &amp; Solomon 2019); the snowball framing is behavioural scaffolding that keeps us buying, not a free lunch. This engine generates and disciplines. It does not certify.</p>
+
+<div class="callout">
+  <h3>The unstated assumption you caught: cheap vs impaired</h3>
+  <p>The cheapness score <em>cannot</em> distinguish "sound business temporarily on sale" from "business correctly priced for decline." A yield at 2&times; its own average means the price halved relative to the dividend, which is either an opportunity or a warning. Our three quality gates (ROE intact, dividend covered, record unbroken) are the <strong>proxy</strong> for "cheap not impaired": an impaired business usually shows a cracked ROE, thin cover, or a prior cut. But these are <strong>lagging</strong>. The residual risk the screen cannot see is a business whose moat is eroding but whose numbers have not broken yet. That is a forward judgement no screen can make.</p>
+  <p><strong>So: the screen ranks candidates, it does not vouch for them. The forward-moat call stays with you.</strong> Worked example: General Mills (7.2% yield, 2&times; its average) and Capgemini (2&times;) top the cheapness ranking, and both fell for real reasons (GM volume and pricing worries; Capgemini caught in the IT-services de-rating). The screen says "the fundamentals have not cracked yet." Only you can add "and the moat will hold."</p>
+</div>
+
+<h2>Sensitivity analysis</h2>
+<p>Yes, done (from the cached store, so it costs nothing to repeat). Each row moves one threshold and reports how many names survive and how much the top 10 overlaps the baseline. <span class="good">Green</span> = stable, <span class="ok">amber</span> = moderate, <span class="bad">red</span> = the result moved a lot.</p>
+<table>
+  <thead><tr><th>Threshold change</th><th>Survivors</th><th>Top-10 overlap</th></tr></thead>
+  <tbody>{{SENS_ROWS}}</tbody>
+</table>
+<p><strong>Reading:</strong> the quality and safety gates (ROE, FCF cover, leverage, record length, yield ceiling) barely move the top of the book, which is reassuring, the result is not an artefact of arbitrary quality thresholds. But two choices genuinely define the screen: the <strong>yield floor</strong> (drop it to 2.5% and the top 10 turns over by two-thirds as low-yield quality-growth floods in, the screen stops being about income) and the <strong>size floor</strong> (mega-cap-only loses the $10-25bn cheap names like Capgemini, 3i and Hannover Re that are currently the most attractive). Those two are real judgement calls, not innocent defaults.</p>
+
+<h3>Survivors by country</h3>
+<table>
+  <thead><tr><th>Country</th><th>Survivors</th><th>In universe</th><th>Pass rate</th></tr></thead>
+  <tbody>{{COUNTRY_ROWS}}</tbody>
+</table>
+
+<h2>You have money this month. How to decide.</h2>
+<p>The rank gives an <em>order</em>, not a portfolio. The allocation rule, in order:</p>
+<ol>
+  <li><strong>Deploy the month it exists.</strong> Fixed monthly amount, in immediately. Immediate beats waiting ~68-70% of the time even with perfect hindsight.</li>
+  <li><strong>Buy the highest-ranked name</strong> that you do not already hold at target weight, and that does not push any one sector above ~25% of the sleeve.</li>
+  <li><strong>The sector cap matters here.</strong> The survivor list is heavy in financials and real estate, so naive top-down buying would over-concentrate. Cap it.</li>
+  <li><strong>Investment trusts are the one legitimate "wait":</strong> buy when the discount to NAV is wider than the trust's own 5-year average (the only timing signal with a real mechanism). Yahoo does not carry NAV discounts, so check the AIC site manually.</li>
+  <li><strong>Never sell on a dip.</strong> This is accumulate-only. Re-rank monthly and let the order name your next buy.</li>
+</ol>
+
+<h2>How often to run it</h2>
+<ul>
+  <li><code>--rerank</code> (instant): any time you re-sort or change a threshold. Free.</li>
+  <li><strong>Monthly default refresh</strong> (<code>python3 screen.py</code>): the real cadence. The gates move on quarterly results, so monthly is the right resolution for a monthly-buy habit. This is the one to automate.</li>
+  <li><code>--refresh</code> after results season (late Feb, late Jul) or a sharp market drop, when fundamentals and the cheapness picture have actually moved.</li>
+  <li>Rebuild the universe roughly quarterly for index reconstitutions.</li>
+  <li>Do not re-fetch more than weekly: nothing in the gates changes intra-week and it only risks rate-limiting.</li>
+</ul>
+
+<h2>The data: every name, every reason</h2>
+<p>All {{NUNIV}} names, survivors first. Search by ticker, name, sector or country. Click a column header to sort. The <code>fails</code> column shows exactly which gate each rejected name tripped.</p>
+<div class="controls">
+  <input id="q" placeholder="search ticker / name / sector / country / reason...">
+  <select id="filt">
+    <option value="all">All names</option>
+    <option value="PASS">Survivors only</option>
+    <option value="reject">Rejects only</option>
+  </select>
+  <span class="chip" id="count"></span>
+</div>
+<div class="tablewrap"><table id="t">
+  <thead><tr>
+    <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
+    <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
+    <th data-k="yield">Yld%</th><th data-k="y5avg">5y avg</th><th data-k="cheap">Cheap</th>
+    <th data-k="roe">ROE</th><th data-k="cagr">DivCAGR</th><th data-k="years">Yrs</th>
+    <th data-k="score">Score</th><th data-k="status">Status</th><th data-k="fails">Fails</th>
+  </tr></thead>
+  <tbody id="tb"></tbody>
+</table></div>
+
+<footer>
+  Income Snowball Screen &middot; tools/income-screen &middot; data {{SCRAPE}} &middot; built {{GENERATED}}<br>
+  Methodology: wiki/references/income-acquisition-evidence-review.md. This is a research tool, not advice. Past dividend behaviour does not guarantee future payments.
+</footer>
+
+<script>
+const DATA = {{DATA}};
+let sortK="rank", sortAsc=true;
+const tb=document.getElementById('tb'), q=document.getElementById('q'),
+      filt=document.getElementById('filt'), count=document.getElementById('count');
+function cell(v){return v===null||v===undefined||v===""?'<span class="rej">.</span>':v;}
+function render(){
+  const term=q.value.toLowerCase(), f=filt.value;
+  let rows=DATA.filter(r=>{
+    if(f!=="all"&&r.status!==f)return false;
+    if(!term)return true;
+    return (r.ticker+' '+r.name+' '+r.sector+' '+r.country+' '+r.fails).toLowerCase().includes(term);
+  });
+  rows.sort((a,b)=>{
+    let x=a[sortK],y=b[sortK];
+    if(x===""||x===null)x=sortAsc?1e9:-1e9; if(y===""||y===null)y=sortAsc?1e9:-1e9;
+    if(typeof x==="string")return sortAsc?x.localeCompare(y):y.localeCompare(x);
+    return sortAsc?x-y:y-x;
+  });
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td>${cell(r.rank)}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
+    <td>${r.country}</td><td>${r.sector}</td>
+    <td>${cell(r.yield)}</td><td>${cell(r.y5avg)}</td>
+    <td>${r.cheap&&r.cheap>1.3?'<span class="good">'+r.cheap+'</span>':cell(r.cheap)}</td>
+    <td>${cell(r.roe)}</td><td>${cell(r.cagr)}</td><td>${cell(r.years)}</td>
+    <td>${cell(r.score)}</td>
+    <td class="${r.status==='PASS'?'pass':'rej'}">${r.status}</td>
+    <td class="rej">${r.fails}</td></tr>`).join('');
+  count.textContent=rows.length+' / '+DATA.length+' names';
+}
+document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.k; if(sortK===k)sortAsc=!sortAsc; else{sortK=k;sortAsc=true;} render();
+});
+q.oninput=render; filt.onchange=render; render();
+</script>
+</div></body></html>

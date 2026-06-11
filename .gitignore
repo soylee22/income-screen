@@ -1,0 +1,8 @@
+__pycache__/
+cache/
+*.out
+*.err
+screen-*.csv
+rejects-*.csv
+run*.out
+run*.err
