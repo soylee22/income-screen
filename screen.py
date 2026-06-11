@@ -129,11 +129,39 @@ def div_record(yearly):
     return years, uncut, cagr5
 
 
+def fcf_from_statement(t):
+    """Fallback when .info lacks freeCashflow: pull FCF and actual dividends paid
+    from the cash-flow statement. Many LSE names have a blank .info FCF field."""
+    fcf = divs_paid = None
+    try:
+        cf = t.cashflow
+        if cf is not None and not cf.empty:
+            idx = cf.index
+            if "Free Cash Flow" in idx:
+                fcf = float(cf.loc["Free Cash Flow"].iloc[0])
+            elif "Operating Cash Flow" in idx and "Capital Expenditure" in idx:
+                fcf = float(cf.loc["Operating Cash Flow"].iloc[0]) + \
+                      float(cf.loc["Capital Expenditure"].iloc[0])
+            if "Cash Dividends Paid" in idx:
+                divs_paid = abs(float(cf.loc["Cash Dividends Paid"].iloc[0]))
+    except Exception:
+        pass
+    return fcf, divs_paid
+
+
 def fetch_one(symbol):
     t = yf.Ticker(symbol)
     info = t.info
     yearly = annual_dividends(t)
     years, uncut, cagr5 = div_record(yearly)
+    # Statement (operating cash flow minus capex) is the auditable FCF and is the PRIMARY
+    # source for non-financials; .info freeCashflow is flaky (wrong or blank on many LSE
+    # names) so it is only a backup. Financials/REITs do not use FCF, so skip the extra call.
+    fcf = divs_paid_actual = None
+    if info.get("sector") not in FINANCIAL_SECTORS:
+        fcf, divs_paid_actual = fcf_from_statement(t)
+    if fcf is None:
+        fcf = info.get("freeCashflow")
     return {
         "ticker": symbol,
         "name": info.get("shortName"),
@@ -145,7 +173,8 @@ def fetch_one(symbol):
         "payout_ratio": info.get("payoutRatio"),
         "roe": info.get("returnOnEquity"),
         "gross_margin": info.get("grossMargins"),
-        "fcf": info.get("freeCashflow"),
+        "fcf": fcf,
+        "divs_paid_actual": divs_paid_actual,
         "total_debt": info.get("totalDebt"),
         "ebitda": info.get("ebitda"),
         "div_years": years,
@@ -219,7 +248,7 @@ def apply_gates(df):
         min_roe = MIN_ROE if r["lane"] == "A" else 0.08
         if pd.isna(r["roe"]) or r["roe"] is None or r["roe"] < min_roe: fails.append("roe")
         if r["lane"] == "A":
-            divs_paid = (r["mcap_local"] or 0) * (y or 0) / 100
+            divs_paid = r.get("divs_paid_actual") or (r["mcap_local"] or 0) * (y or 0) / 100
             if not r["fcf"] or divs_paid <= 0 or r["fcf"] / divs_paid < MIN_FCF_COVER:
                 fails.append("fcf_cover")
             if r["ebitda"] and r["ebitda"] > 0 and r["total_debt"] is not None:
@@ -253,8 +282,9 @@ def rank(survivors):
     # Cheapness: yield vs own 5y average (Weiss signal; honestly a value tilt). >1 = cheap.
     df["cheap_ratio"] = (df["yield_pct"] / df["yield_5y_avg"]).clip(0.5, 2.0).fillna(1.0)
     df["fcf_cover"] = df.apply(
-        lambda r: r["fcf"] / (r["mcap_local"] * r["yield_pct"] / 100)
-        if r["lane"] == "A" and r["fcf"] and r["mcap_local"] and r["yield_pct"] else None, axis=1)
+        lambda r: r["fcf"] / (r.get("divs_paid_actual") or (r["mcap_local"] * r["yield_pct"] / 100))
+        if r["lane"] == "A" and r["fcf"] and (r.get("divs_paid_actual") or (r["mcap_local"] and r["yield_pct"]))
+        else None, axis=1)
     z_cheap = zscore(df["cheap_ratio"])
     z_qual = (zscore(df["roe"]) + zscore(df["gross_margin"])) / 2
     z_growth = zscore(pd.to_numeric(df["div_cagr5"], errors="coerce").clip(upper=0.15))
