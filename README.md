@@ -34,6 +34,23 @@ fetched within `--max-age` days (default 30) and fetches only the stale/missing 
 expensive 690-name pull happens once and updates incrementally. The store falls back to stale
 data if a live fetch fails, so a name is never silently dropped on a bad Yahoo response.
 
+## PRA override (UK financials)
+
+`PRA_OVERRIDE` in `screen.py` is a documented list of UK banks/insurers the Bank of England's
+PRA forced to suspend dividends in March 2020. The override forgives ONLY that 2020 cut, and
+only for names verified to have restored the dividend to >=90% of 2019. They still clear every
+other gate. Overridden names carry a `PRA` tag on the site. Edit the dict to add/remove; keep
+the one-line reason so the list stays auditable.
+
+## Auto-refresh (launchd)
+
+`cron_refresh.sh` runs `screen.py` (incremental) then `publish.sh`. The launchd agent
+`~/Library/LaunchAgents/com.mithril.income-screen.plist` fires it on the 1st of each month at
+07:23. Logs to `refresh.log`. The wrapper pins `/usr/local/bin/python3` (the interpreter with
+pandas+yfinance) because launchd does not inherit your interactive PATH.
+Manage: `launchctl unload/load ~/Library/LaunchAgents/com.mithril.income-screen.plist`.
+The published masthead shows the scrape date, so the live site always says how fresh the data is.
+
 ## When to re-run (cadence)
 
 - `--rerank` (instant): any time you want to re-sort or after editing thresholds/weights. Free.

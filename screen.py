@@ -53,6 +53,21 @@ MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day 
 
 WEIGHTS = {"cheap": 0.35, "quality": 0.30, "growth": 0.20, "safety": 0.15}
 
+# Dividend withholding tax suffered by a UK ISA investor (passive, no reclaim).
+# UK/HK/IE = 0; US = 15% via W-8BEN treaty (0% in a SIPP); EU mostly ~26% (treaty 15% but
+# reclaim is painful in an ISA); Switzerland 35% (reclaim to 15% is a manual hassle most skip).
+WHT_BY_COUNTRY = {"UK": 0.0, "HK": 0.0, "IE": 0.0, "US": 0.15, "NL": 0.15,
+                  "ES": 0.19, "DE": 0.26, "FR": 0.26, "IT": 0.26, "CH": 0.35}
+TAX_TILT = 0.7        # score penalty per unit of WHT (income mandate prefers tax-efficient domiciles)
+
+
+def country(tk):
+    for sfx, c in [(".L", "UK"), (".PA", "FR"), (".DE", "DE"), (".SW", "CH"), (".HK", "HK"),
+                   (".MC", "ES"), (".MI", "IT"), (".AS", "NL")]:
+        if tk.endswith(sfx):
+            return c
+    return "US"
+
 FX_PAIRS = {"GBP": "GBPUSD=X", "GBp": "GBPUSD=X", "EUR": "EURUSD=X", "CHF": "CHFUSD=X",
             "HKD": "HKDUSD=X", "DKK": "DKKUSD=X", "SEK": "SEKUSD=X", "NOK": "NOKUSD=X",
             "AUD": "AUDUSD=X", "CAD": "CADUSD=X", "JPY": "JPYUSD=X", "SGD": "SGDUSD=X"}
@@ -244,8 +259,11 @@ def rank(survivors):
     z_qual = (zscore(df["roe"]) + zscore(df["gross_margin"])) / 2
     z_growth = zscore(pd.to_numeric(df["div_cagr5"], errors="coerce").clip(upper=0.15))
     z_safe = zscore(df["fcf_cover"]).fillna(0.0)  # lane B gets neutral safety
-    df["score"] = (WEIGHTS["cheap"] * z_cheap + WEIGHTS["quality"] * z_qual.fillna(0)
-                   + WEIGHTS["growth"] * z_growth.fillna(0) + WEIGHTS["safety"] * z_safe)
+    df["wht"] = df["ticker"].map(lambda t: WHT_BY_COUNTRY.get(country(t), 0.20))
+    df["net_yield"] = (df["yield_pct"] * (1 - df["wht"])).round(2)
+    composite = (WEIGHTS["cheap"] * z_cheap + WEIGHTS["quality"] * z_qual.fillna(0)
+                 + WEIGHTS["growth"] * z_growth.fillna(0) + WEIGHTS["safety"] * z_safe)
+    df["score"] = composite - TAX_TILT * df["wht"]   # tax tilt: prefer low-WHT domiciles
     return df.sort_values("score", ascending=False)
 
 
@@ -274,7 +292,7 @@ def main():
     ranked.to_csv(out, index=False)
 
     ranked["mom12m_pct"] = (pd.to_numeric(ranked["mom_12m"], errors="coerce") * 100).round(1)
-    cols = ["ticker", "name", "sector", "lane", "yield_pct", "yield_5y_avg",
+    cols = ["ticker", "name", "sector", "yield_pct", "net_yield", "wht",
             "cheap_ratio", "roe", "div_cagr5", "mom12m_pct", "div_years", "score"]
     pd.set_option("display.width", 200)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)} (gates: mcap>=$10bn, yield {YIELD_MIN}-{YIELD_MAX}%, "

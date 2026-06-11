@@ -312,6 +312,12 @@
       <li><strong>Investment trusts are the one legitimate wait:</strong> buy when the discount to NAV is wider than the trust's own 5-year average (the only timing signal with a real mechanism). Yahoo does not carry NAV discounts, so check the AIC site manually.</li>
       <li><strong>Never sell on a dip.</strong> This is accumulate-only. Re-rank monthly and let the order name your next buy.</li>
     </ol>
+    <div class="callout">
+      <p class="tag">Withholding tax &amp; asset location</p>
+      <h3>Rank on net yield, tilt toward low-tax domiciles, do not wall off the world</h3>
+      <p>Foreign dividends are taxed at source and an ISA does not exempt that. For a UK investor the effective drag is roughly: UK and Hong Kong <strong>0%</strong>, US <strong>15%</strong> (W-8BEN treaty), Germany/France/Italy <strong>~26%</strong>, Switzerland <strong>35%</strong>. So a headline 5.3% Swiss yield delivers only ~3.5% net, while a 5.5% UK yield is the full 5.5%. The table now shows a <strong>Net%</strong> column (yield after withholding) and a <strong>WHT</strong> column, and the score carries a modest penalty by domicile so UK and HK names tilt up and Swiss/French/German names tilt down, in proportion.</p>
+      <p>It is a tilt, not a wall, on purpose. The UK income universe is thin and trap-prone (section 02), so going home-only would sacrifice quality and concentrate risk. The cleaner lever is <strong>asset location</strong>: US withholding falls to <strong>0%</strong> inside a SIPP (the treaty exempts pensions), so hold the US dividend names in a SIPP and the UK and high-withholding names in the ISA. Tax should nudge the ranking, not dictate a single country.</p>
+    </div>
   </section>
 
   <section id="ops">
@@ -344,7 +350,7 @@
       <thead><tr>
         <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
-        <th data-k="yield">Yld%</th><th data-k="y5avg">5y avg</th><th data-k="cheap">Cheap</th>
+        <th data-k="yield">Yld%</th><th data-k="nety">Net%</th><th data-k="wht">WHT</th><th data-k="cheap">Cheap</th>
         <th data-k="roe">ROE</th><th data-k="cagr">DivCAGR</th><th data-k="mom">12m%</th><th data-k="years">Yrs</th>
         <th data-k="score">Score</th><th data-k="status">Status</th><th data-k="fails">Fails</th>
       </tr></thead>
@@ -381,7 +387,8 @@ function render(){
   tb.innerHTML=rows.map(r=>`<tr>
     <td class="dim">${cell(r.rank)}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
     <td>${r.country}</td><td>${r.sector}</td>
-    <td>${cell(r.yield)}</td><td>${cell(r.y5avg)}</td>
+    <td>${cell(r.yield)}</td><td>${cell(r.nety)}</td>
+    <td class="dim">${r.wht?r.wht+'%':'0%'}</td>
     <td>${r.cheap&&r.cheap>1.3?'<span class="cheapy">'+r.cheap+'</span>':cell(r.cheap)}</td>
     <td>${cell(r.roe)}</td><td>${cell(r.cagr)}</td>
     <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>

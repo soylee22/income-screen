@@ -54,6 +54,9 @@ for _, r in df.iterrows():
         "cheap": num(cheap_map.get(t)), "roe": num(r.get("roe"), 3),
         "cagr": num(r.get("div_cagr5"), 3),
         "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
+        "wht": int(S.WHT_BY_COUNTRY.get(S.country(t), 0.20) * 100),
+        "nety": num(r.get("yield_pct") * (1 - S.WHT_BY_COUNTRY.get(S.country(t), 0.20)), 2)
+        if r.get("yield_pct") is not None else None,
         "years": r.get("div_years"),
         "status": "PASS" if r["fails"] == "" else "reject",
         "fails": r["fails"], "score": num(score_map.get(t), 3),
