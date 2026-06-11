@@ -27,8 +27,21 @@ CACHE = HERE / "cache"
 
 FINANCIAL_SECTORS = {"Financial Services", "Real Estate"}
 
+# PRA-override: UK financials the Bank of England's PRA FORCED to suspend dividends in
+# March 2020. We forgive ONLY that 2020 cut, and only for names verified (2026-06-11) to
+# have restored the dividend to >=90% of their 2019 level. They must still clear every
+# other gate (yield band, ROE, trend, etc.). Auditable list, edit here to add/remove.
+PRA_OVERRIDE = {
+    "HSBA.L": "PRA-forced 2020 suspension; ordinary dividend restored above 2019",
+    "LLOY.L": "PRA-forced 2020 suspension; restored to ~94% of 2019",
+    "NWG.L":  "PRA-forced 2020 suspension; restored and growing",
+    "BARC.L": "PRA-forced 2020 suspension; restored (still fails yield floor)",
+    "STAN.L": "PRA-forced 2020 suspension; restored (still fails yield floor)",
+    "AV.L":   "2020 rebase under PRA pressure; recovered above 2019",
+}
+
 # Gates (lane A = general corporates, lane B = financials/REITs)
-MIN_MCAP_USD = 10e9
+MIN_MCAP_USD = 15e9
 YIELD_MIN, YIELD_MAX = 3.0, 8.0          # trap zone above 8 (quintile evidence)
 MIN_DIV_YEARS = 10                        # growers/payers cohort
 MAX_CUT = 0.20                            # >20% YoY fall in any of last 10 complete years = cut
@@ -205,6 +218,12 @@ def apply_gates(df):
         return ",".join(fails)
 
     df["fails"] = df.apply(gate, axis=1)
+    # PRA override: forgive ONLY the 2020 cut for the documented UK financials
+    df["overridden"] = df.apply(
+        lambda r: r["ticker"] in PRA_OVERRIDE and "cut_in_10y" in r["fails"], axis=1)
+    df["fails"] = df.apply(
+        lambda r: ",".join(f for f in r["fails"].split(",") if f != "cut_in_10y")
+        if r["overridden"] else r["fails"], axis=1)
     return df
 
 

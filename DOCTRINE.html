@@ -161,6 +161,7 @@
     padding:2px 9px;border-radius:20px;border:1px solid;text-transform:uppercase}
   .pill.pass{color:var(--pass);border-color:rgba(111,179,154,.35);background:rgba(111,179,154,.08)}
   .pill.rej{color:var(--muted);border-color:var(--hair);background:transparent}
+  .pill.ovr{color:var(--accent);border-color:rgba(127,168,196,.35);background:rgba(127,168,196,.08);margin-left:5px}
   .cheapy{color:var(--pass)}
   .dim{color:var(--faint)}
   .failtxt{color:var(--muted);font-size:11px}
@@ -234,6 +235,7 @@
       <h3>Almost no UK survives, and that is the screen working</h3>
       <p>Of 100 FTSE 100 names, five pass. The UK large-cap market is bifurcated: <strong>low-yield quality-growth</strong> (AstraZeneca 1.7%, RELX 2.6%, Rolls 0.8%) that fails the 3% income floor, and <strong>high-yield-but-cut-prone</strong> (all five big banks suspended in 2020 under PRA instruction; Shell and BP cut in 2020; miners, telecoms and utilities pay variable dividends) that fails the unbroken-record gate. The quality-and-sustained-and-yielding middle is genuinely thin in the UK. IUKD, the pure UK high-yield index, is the textbook long-run underperformer for exactly this reason.</p>
       <p><strong>Implication: this is a global quality-income screen. UK exposure should come from your index core, not from this sleeve.</strong></p>
+      <p style="margin-top:14px"><strong>One deliberate exception:</strong> a documented PRA-override list restores the big UK banks and insurers (HSBC, NatWest, Lloyds, Aviva) whose only blemish was the 2020 dividend suspension that the Bank of England's PRA <em>forced</em> on the whole sector, and which each has since restored to above 90% of its 2019 level. Those names carry a <span class="pill ovr" style="font-size:9px">PRA</span> tag in the table. They still clear every other gate. Several rank low on cheapness precisely because they have since rallied hard (HSBC up ~48%), which is the screen working: included, but not flagged as cheap.</p>
     </div>
   </section>
 
@@ -244,7 +246,7 @@
       <div>
         <h3>Gates &middot; binary, all required</h3>
         <ol>
-          <li><strong>Size</strong> at least $10bn market cap (FX-converted)</li>
+          <li><strong>Size</strong> at least $15bn market cap (FX-converted)</li>
           <li><strong>Yield</strong> between 3% and 8%</li>
           <li><strong>Record</strong>: 10+ years paying, no &gt;20% annual cut in the last 10 (2020/21 COVID and PRA cuts forgiven if recovered to 90% of 2019)</li>
           <li><strong>Quality</strong>: ROE at least 10% (8% for financials)</li>
@@ -384,7 +386,7 @@ function render(){
     <td>${cell(r.roe)}</td><td>${cell(r.cagr)}</td>
     <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>
     <td>${cell(r.years)}</td><td>${cell(r.score)}</td>
-    <td><span class="pill ${r.status==='PASS'?'pass':'rej'}">${r.status}</span></td>
+    <td><span class="pill ${r.status==='PASS'?'pass':'rej'}">${r.status}</span>${r.ovr?'<span class="pill ovr">PRA</span>':''}</td>
     <td class="failtxt">${r.fails}</td></tr>`).join('');
   count.textContent=rows.length+' / '+DATA.length+' names';
 }

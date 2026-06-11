@@ -57,7 +57,7 @@ for _, r in df.iterrows():
         "years": r.get("div_years"),
         "status": "PASS" if r["fails"] == "" else "reject",
         "fails": r["fails"], "score": num(score_map.get(t), 3),
-        "fetched": r.get("_fetched", ""),
+        "ovr": bool(r.get("overridden")), "fetched": r.get("_fetched", ""),
     })
 table.sort(key=lambda x: (x["status"] != "PASS", x["rank"] if x["rank"] != "" else 9999))
 
