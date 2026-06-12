@@ -50,6 +50,13 @@ GROWTH_CAP = 0.08            # never credit more than 8% sustainable dividend gr
 GROWTH_FLOOR = -0.03         # floor a mild decline (gates already require uncut record)
 QUAL_HAIRCUT_REF = 0.15      # ROIC/ROE at which positive growth gets full credit
 REVERSION_PP = 0.9           # max cross-sectional cheapness tilt (pp), kept modest
+# GFC resilience: penalty (pp) to expected return by 2008-09 dividend behaviour (trough
+# 2009/10 vs peak 2007/08). We cannot get CET1/Solvency II from Yahoo, but the dividend's
+# actual crisis survival is the outcome those capital ratios are meant to predict.
+GFC_PEN = {"held": 0.0, "trimmed": -0.6, "cut": -1.8, "zeroed": -3.0, "unproven": 0.0}
+# Names whose 2008-09 dividend drop was a corporate action (spin-off/demerger), NOT a cut.
+# Auditable, like PRA_OVERRIDE. The GFC penalty is waived for these.
+GFC_OVERRIDE = {"MO": "2008 drop = Philip Morris Intl spin-off, not a cut (64y aristocrat)"}
 
 # Dividend withholding tax for a UK ISA investor (passive, no reclaim). UK/HK/IE 0;
 # US 15% (W-8BEN; 0% in a SIPP); EU ~26%; Switzerland 35%; Japan 10% (treaty).
@@ -133,6 +140,17 @@ def div_record(yearly):
     return years, not cut_years, cagr5
 
 
+def gfc_ratio(yearly):
+    """Dividend resilience through the 2008-09 crisis: trough(2009,2010) / peak(2007,2008).
+    1.0 = held, <0.6 = cut >40%, ~0 = slashed to nothing. None = no pre-crisis history."""
+    if yearly is None or yearly.empty:
+        return None
+    pre = max(yearly.get(2007, 0), yearly.get(2008, 0))
+    if pre <= 0:
+        return None
+    return min(yearly.get(2009, 0), yearly.get(2010, 0)) / pre
+
+
 def robust_div_growth(yearly):
     """Log-linear trend slope over the last 8 complete years: robust to single-year
     spikes/dips (a far better growth signal than endpoint-to-endpoint CAGR)."""
@@ -213,7 +231,7 @@ def fetch_one(symbol):
         "roic": roic, "gross_prof": gross_prof,
         "fcf": fcf, "divs_paid_actual": divs_paid_actual, "cash": cash,
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
-        "div_years": years, "uncut_10y": uncut,
+        "div_years": years, "uncut_10y": uncut, "gfc_ratio": gfc_ratio(yearly),
         "div_cagr5": cagr5, "div_growth": robust_div_growth(yearly),
         "earnings_growth": info.get("earningsGrowth"), "revenue_growth": info.get("revenueGrowth"),
         "trailing_pe": info.get("trailingPE"), "forward_pe": info.get("forwardPE"),
@@ -261,7 +279,7 @@ def fetch_universe(tickers, max_age_days):
 EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pct",
                  "yield_5y_avg", "payout_ratio", "roe", "roa", "op_margin", "gross_margin",
                  "roic", "gross_prof", "fcf", "divs_paid_actual", "cash", "total_debt",
-                 "ebitda", "div_years", "uncut_10y", "div_cagr5", "div_growth",
+                 "ebitda", "div_years", "uncut_10y", "gfc_ratio", "div_cagr5", "div_growth",
                  "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
                  "mom_12m", "px", "sma200", "wk52high"]
 
@@ -396,7 +414,23 @@ def rank(survivors, mode="expret"):
 
     df["reversion"] = (df.groupby("lane", group_keys=False)["_val"].apply(_lane_z)
                        .clip(-1.5, 1.5) * (REVERSION_PP / 1.5)).round(2)
-    df["exp_return"] = (df["net_yield"] + df["g_sust"] * 100 + df["reversion"]).round(2)
+
+    def _gfc_pen(r):                                     # crisis-fragility haircut (pp)
+        if r["ticker"] in GFC_OVERRIDE:
+            return 0.0
+        x = _safe(r.get("gfc_ratio"))
+        if x is None:
+            return GFC_PEN["unproven"]
+        if x >= 0.9:
+            return GFC_PEN["held"]
+        if x >= 0.6:
+            return GFC_PEN["trimmed"]
+        if x >= 0.2:
+            return GFC_PEN["cut"]
+        return GFC_PEN["zeroed"]
+
+    df["gfc_pen"] = df.apply(_gfc_pen, axis=1)
+    df["exp_return"] = (df["net_yield"] + df["g_sust"] * 100 + df["reversion"] + df["gfc_pen"]).round(2)
     df["score"] = df["exp_return"]
     df["growth"] = df["g_raw"]                            # display alias
 
@@ -428,8 +462,8 @@ def main():
 
     ranked["roic%"] = (pd.to_numeric(ranked["roic"], errors="coerce") * 100).round(0)
     ranked["gsust%"] = (pd.to_numeric(ranked["g_sust"], errors="coerce") * 100).round(1)
-    cols = ["ticker", "name", "sector", "yield_pct", "net_yield", "wht",
-            "roic%", "gsust%", "reversion", "exp_return", "div_years"]
+    cols = ["ticker", "name", "sector", "net_yield", "roic%", "gsust%", "reversion",
+            "gfc_pen", "exp_return", "div_years"]
     pd.set_option("display.width", 210)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)}  [mode: {args.mode}]  "
           f"(mcap>=${MIN_MCAP_USD/1e9:.0f}bn, yield {YIELD_MIN}-{YIELD_MAX}%, 10y uncut, "

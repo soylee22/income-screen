@@ -35,6 +35,7 @@ exp_map = dict(zip(ranked["ticker"], ranked["exp_return"]))
 ny_map = dict(zip(ranked["ticker"], ranked["net_yield"]))
 gs_map = dict(zip(ranked["ticker"], ranked["g_sust"]))
 rev_map = dict(zip(ranked["ticker"], ranked["reversion"]))
+gfc_map = dict(zip(ranked["ticker"], ranked["gfc_pen"]))
 cheap_map = dict(zip(ranked["ticker"], ranked["cheap_ratio"]))
 growth_map = dict(zip(ranked["ticker"], ranked["growth"]))
 
@@ -72,6 +73,7 @@ for _, r in df.iterrows():
         "qual": num(qual * 100, 0) if qual is not None else None,
         "gsust": num(gs_map.get(t) * 100, 1) if gs_map.get(t) is not None and not pd.isna(gs_map.get(t)) else (num(gval * 100, 0) if gval is not None else None),
         "rev": num(rev_map.get(t), 2),
+        "gfc": num(gfc_map.get(t), 1),
         "exp": num(exp_map.get(t), 1),
         "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
         "years": r.get("div_years"),
