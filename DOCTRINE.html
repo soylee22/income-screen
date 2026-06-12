@@ -263,15 +263,16 @@
         </ol>
       </div>
       <div>
-        <h3>Rank &middot; survivors only</h3>
+        <h3>Rank &middot; expected return (Gordon / DDM)</h3>
+        <p style="margin-top:6px">Survivors are ranked by an estimate of expected total return, in real percentage points, so the number is interpretable and includes the income level itself:</p>
+        <p style="font-family:var(--mono);font-size:12.5px;color:var(--silver);background:var(--bg-2);border:1px solid var(--hair);border-radius:7px;padding:11px 13px;margin:10px 0">exp return = net&nbsp;yield + sustainable&nbsp;growth + reversion</p>
         <ul>
-          <li><strong>35% Cheapness</strong>: current yield vs the stock's own 5-year average yield</li>
-          <li><strong>30% Quality</strong>: a blend of ROIC, gross profitability (Novy-Marx) and operating margin</li>
-          <li><strong>20% Dividend growth</strong>: log-linear trend slope over 8 years (robust to one-off years)</li>
-          <li><strong>15% Safety</strong>: free-cash-flow cover headroom</li>
+          <li><strong>Net yield</strong>: after-withholding-tax current yield (the income, which a pure factor blend leaves out)</li>
+          <li><strong>Sustainable growth</strong>: robust 8-year dividend-growth slope blended with a forward estimate, <strong>capped at 8%</strong> (long-run real growth is ~1.8%/yr, so high growth must not be trusted at face value) and haircut by ROIC quality</li>
+          <li><strong>Reversion</strong>: a modest cross-sectional cheapness tilt (FCF yield vs the other candidates), the evidence-backed form of value</li>
         </ul>
-        <p style="font-size:13px;color:var(--muted);margin-top:14px">Every input is <strong>winsorised</strong> (clipped at the 5th/95th percentile) before scoring, so no single bad datapoint can distort the order, and a withholding-tax penalty tilts the score by domicile. Two lanes: financials and REITs skip the cash-cover, leverage and ROIC gates (those figures are meaningless for them) and use ROE instead, which is what makes the same code hold from Zurich Insurance to General Mills.</p>
-        <p style="font-size:13px;color:var(--muted);margin-top:10px">The data explorer (section 09) offers a second lens: <strong>Net income</strong> mode sorts survivors by net yield with a dividend-growth guard, for when you want maximum income now rather than the balanced composite.</p>
+        <p style="font-size:13px;color:var(--muted);margin-top:12px">This is the theory of dividend returns, not an arbitrary weighting. It dissolves the old yield-vs-growth argument: a high yielder and a fast grower are scored on the same expected-return basis and the maths decides. Two lanes: financials and REITs use ROE (the right metric for them) and skip the ROIC/cash-cover/leverage gates.</p>
+        <p style="font-size:13px;color:var(--muted);margin-top:10px">Section 09 offers a second lens: <strong>Net income</strong> sorts survivors by net yield with a dividend-growth guard, for maximum income now.</p>
       </div>
     </div>
   </section>
@@ -341,9 +342,9 @@
 
   <section id="data">
     <div class="sechead"><span class="num">09</span><h2>Data explorer</h2></div>
-    <p>All {{NUNIV}} names, survivors first. Two ranking lenses: <strong>Composite</strong> (cheapness + quality + growth + safety, tax-tilted) and <strong>Net income</strong> (highest net yield first, growth-guarded). Switch below; the gates are identical, only the ordering of survivors changes.</p>
+    <p>All {{NUNIV}} names, survivors first. Two ranking lenses: <strong>Expected return</strong> (Gordon/DDM estimate: net yield + quality-haircut sustainable growth + cross-sectional reversion, in real percentage points) and <strong>Net income</strong> (highest net yield first, growth-guarded). Switch below; the gates are identical, only the ordering of survivors changes.</p>
     <div class="modebar">
-      <button class="modebtn on" data-mode="comp">Composite</button>
+      <button class="modebtn on" data-mode="comp">Expected return</button>
       <button class="modebtn" data-mode="ni">Net income</button>
       <span class="toppick" id="toppick"></span>
     </div>
@@ -363,9 +364,10 @@
       <thead><tr>
         <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
-        <th data-k="yield">Yld%</th><th data-k="nety">Net%</th><th data-k="wht">WHT</th><th data-k="cheap">Cheap</th>
-        <th data-k="roic">ROIC</th><th data-k="grow">Grow%</th><th data-k="mom">12m%</th><th data-k="years">Yrs</th>
-        <th data-k="score">Score</th><th data-k="status">Status</th><th data-k="fails">Fails</th>
+        <th data-k="yield">Yld%</th><th data-k="nety">Net%</th><th data-k="wht">WHT</th>
+        <th data-k="roic">ROIC</th><th data-k="gsust">Grow%</th><th data-k="rev">Rev</th><th data-k="exp">ExpRet%</th>
+        <th data-k="mom">12m%</th><th data-k="years">Yrs</th>
+        <th data-k="status">Status</th><th data-k="fails">Fails</th>
       </tr></thead>
       <tbody id="tb"></tbody>
     </table></div>
@@ -402,13 +404,14 @@ function render(){
   tb.innerHTML=rows.map(r=>`<tr>
     <td class="dim">${cell(r.rank)}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
     <td>${r.country}</td><td>${r.sector}</td>
-    <td>${cell(r.yield)}</td><td>${cell(r.nety)}</td>
+    <td>${cell(r.yield)}</td><td><b>${cell(r.nety)}</b></td>
     <td class="dim">${r.wht?r.wht+'%':'0%'}</td>
-    <td>${r.cheap&&r.cheap>1.3?'<span class="cheapy">'+r.cheap+'</span>':cell(r.cheap)}</td>
     <td>${r.roic!==null?r.roic+'%':cell(r.qual!==null?r.qual+'%':null)}</td>
-    <td>${r.grow!==null&&r.grow<0?'<span class="failtxt">'+r.grow+'%</span>':(r.grow!==null?r.grow+'%':cell(null))}</td>
+    <td>${r.gsust!==null&&r.gsust<0?'<span class="failtxt">'+r.gsust+'%</span>':(r.gsust!==null?r.gsust+'%':cell(null))}</td>
+    <td class="dim">${r.rev!==null?(r.rev>0?'+':'')+r.rev:cell(null)}</td>
+    <td><b class="cheapy">${cell(r.exp!==null?r.exp+'%':null)}</b></td>
     <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>
-    <td>${cell(r.years)}</td><td>${cell(r.score)}</td>
+    <td>${cell(r.years)}</td>
     <td><span class="pill ${r.status==='PASS'?'pass':'rej'}">${r.status}</span>${r.ovr?'<span class="pill ovr">PRA</span>':''}</td>
     <td class="failtxt">${r.fails}</td></tr>`).join('');
   count.textContent=rows.length+' / '+DATA.length+' names';
@@ -424,7 +427,7 @@ document.querySelectorAll('.modebtn').forEach(b=>b.onclick=()=>{
 function setTop(){
   toppick.innerHTML = mode==="ni"
     ? 'Top net income: <b>'+NI_TOP+'</b>'
-    : 'Top composite: <b>'+COMP_TOP+'</b>';
+    : 'Top expected return: <b>'+COMP_TOP+'</b>';
 }
 q.oninput=render; filt.onchange=render; setTop(); render();
 

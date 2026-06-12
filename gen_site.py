@@ -27,11 +27,14 @@ rows = [r for r in store.values() if "ticker" in r]
 df = S.apply_gates(pd.DataFrame(rows))
 df["country"] = df["ticker"].map(country)
 surv = df[df["fails"] == ""]
-ranked = S.rank(surv, mode="composite")
+ranked = S.rank(surv, mode="expret")
 ni = S.rank(surv, mode="net_income")
 rank_map = {t: i + 1 for i, t in enumerate(ranked["ticker"])}
 ni_rank = {t: i + 1 for i, t in enumerate(ni["ticker"])}   # net-income view order
-score_map = dict(zip(ranked["ticker"], ranked["score"]))
+exp_map = dict(zip(ranked["ticker"], ranked["exp_return"]))
+ny_map = dict(zip(ranked["ticker"], ranked["net_yield"]))
+gs_map = dict(zip(ranked["ticker"], ranked["g_sust"]))
+rev_map = dict(zip(ranked["ticker"], ranked["reversion"]))
 cheap_map = dict(zip(ranked["ticker"], ranked["cheap_ratio"]))
 growth_map = dict(zip(ranked["ticker"], ranked["growth"]))
 
@@ -65,14 +68,15 @@ for _, r in df.iterrows():
         "wht": int(S.WHT_BY_COUNTRY.get(S.country(t), 0.20) * 100),
         "nety": num(r.get("yield_pct") * (1 - S.WHT_BY_COUNTRY.get(S.country(t), 0.20)), 2)
         if r.get("yield_pct") is not None else None,
-        "cheap": num(cheap_map.get(t)),
         "roic": num(roic * 100, 0) if roic is not None else None,
         "qual": num(qual * 100, 0) if qual is not None else None,
-        "grow": num(gval * 100, 0) if gval is not None else None,
+        "gsust": num(gs_map.get(t) * 100, 1) if gs_map.get(t) is not None and not pd.isna(gs_map.get(t)) else (num(gval * 100, 0) if gval is not None else None),
+        "rev": num(rev_map.get(t), 2),
+        "exp": num(exp_map.get(t), 1),
         "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
         "years": r.get("div_years"),
         "status": "PASS" if r["fails"] == "" else "reject",
-        "fails": r["fails"], "score": num(score_map.get(t), 3),
+        "fails": r["fails"], "score": num(exp_map.get(t), 2),
         "ovr": bool(r.get("overridden")), "fetched": r.get("_fetched", ""),
     })
 table.sort(key=lambda x: (x["status"] != "PASS", x["rank"] if x["rank"] != "" else 9999))
@@ -102,8 +106,8 @@ for lbl, kw in [("Yield floor 2.5% (base 3.0)", {"YIELD_MIN": 2.5}),
                 ("FCF cover 1.0x (base 1.3)", {"MIN_FCF_COVER": 1.0}),
                 ("FCF cover 1.5x", {"MIN_FCF_COVER": 1.5}),
                 ("Net leverage 3x (base 4)", {"MAX_NET_LEVERAGE": 3.0}),
-                ("Tax tilt 0.4 (base 0.7)", {"TAX_TILT": 0.4}),
-                ("Tax tilt 1.2", {"TAX_TILT": 1.2}),
+                ("Growth cap 6% (base 8)", {"GROWTH_CAP": 0.06}),
+                ("Growth cap 12%", {"GROWTH_CAP": 0.12}),
                 ("Record 15y (base 10)", {"MIN_DIV_YEARS": 15}),
                 ("Size floor $25bn (base 15)", {"MIN_MCAP_USD": 25e9})]:
     variant(lbl, **kw)

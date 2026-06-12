@@ -43,7 +43,13 @@ MAX_NET_LEVERAGE = 4.0                    # (total debt - cash) / EBITDA, lane A
 MOM_12M_MIN = -0.10                       # falling-knife: drop names down >10% over 12m
 MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day average
 
-WEIGHTS = {"cheap": 0.35, "quality": 0.30, "growth": 0.20, "safety": 0.15}
+# Ranking: Gordon/DDM expected return = net yield + sustainable growth + cross-sectional
+# reversion. Growth is capped (DMS: long-run real div growth ~1.8%/yr, so high growth
+# mean-reverts and must not be trusted at face value) and haircut by quality.
+GROWTH_CAP = 0.08            # never credit more than 8% sustainable dividend growth
+GROWTH_FLOOR = -0.03         # floor a mild decline (gates already require uncut record)
+QUAL_HAIRCUT_REF = 0.15      # ROIC/ROE at which positive growth gets full credit
+REVERSION_PP = 0.9           # max cross-sectional cheapness tilt (pp), kept modest
 
 # Dividend withholding tax for a UK ISA investor (passive, no reclaim). UK/HK/IE 0;
 # US 15% (W-8BEN; 0% in a SIPP); EU ~26%; Switzerland 35%; Japan 10% (treaty).
@@ -209,6 +215,9 @@ def fetch_one(symbol):
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
         "div_years": years, "uncut_10y": uncut,
         "div_cagr5": cagr5, "div_growth": robust_div_growth(yearly),
+        "earnings_growth": info.get("earningsGrowth"), "revenue_growth": info.get("revenueGrowth"),
+        "trailing_pe": info.get("trailingPE"), "forward_pe": info.get("forwardPE"),
+        "beta": info.get("beta"),
         "mom_12m": info.get("52WeekChange"),
         "px": info.get("currentPrice") or info.get("regularMarketPrice"),
         "sma200": info.get("twoHundredDayAverage"), "wk52high": info.get("fiftyTwoWeekHigh"),
@@ -252,8 +261,9 @@ def fetch_universe(tickers, max_age_days):
 EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pct",
                  "yield_5y_avg", "payout_ratio", "roe", "roa", "op_margin", "gross_margin",
                  "roic", "gross_prof", "fcf", "divs_paid_actual", "cash", "total_debt",
-                 "ebitda", "div_years", "uncut_10y", "div_cagr5", "div_growth", "mom_12m",
-                 "px", "sma200", "wk52high"]
+                 "ebitda", "div_years", "uncut_10y", "div_cagr5", "div_growth",
+                 "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
+                 "mom_12m", "px", "sma200", "wk52high"]
 
 
 def apply_gates(df):
@@ -263,6 +273,15 @@ def apply_gates(df):
     rates = fx_rates(df["currency"])
     df["mcap_usd"] = df.apply(lambda r: (r["mcap_local"] or 0) * (rates.get(r["currency"]) or 0), axis=1)
     df["lane"] = df["sector"].map(lambda s: "B" if s in FINANCIAL_SECTORS else "A")
+    # FCF yield + sector medians (for cross-sectional, evidence-backed cheapness)
+    df["fcf_yield"] = df.apply(
+        lambda r: r["fcf"] / r["mcap_local"] if (r.get("fcf") and r.get("mcap_local")) else None, axis=1)
+    pay = df[pd.to_numeric(df["yield_pct"], errors="coerce") > 0]
+    med_y = pay.groupby("sector")["yield_pct"].median().to_dict()
+    med_fy = pay.assign(_fy=pd.to_numeric(pay["fcf_yield"], errors="coerce")) \
+        .groupby("sector")["_fy"].median().to_dict()
+    df["sec_med_yield"] = df["sector"].map(med_y)
+    df["sec_med_fcfy"] = df["sector"].map(med_fy)
 
     def quality_ok(r):
         if r["lane"] == "A":
@@ -325,36 +344,66 @@ def zw(s):
     return zscore(winsor(s))
 
 
-def rank(survivors, mode="composite"):
+def _safe(v, default=None):
+    return float(v) if v is not None and not pd.isna(v) else default
+
+
+def _sustainable_growth(r):
+    """Historical dividend growth, blended with a forward earnings estimate, then
+    capped and floored. Returns the RAW (pre-quality-haircut) sustainable growth."""
+    g = _safe(r.get("div_growth"), _safe(r.get("div_cagr5"), 0.0))
+    eg = _safe(r.get("earnings_growth"))
+    if eg is not None:                                   # forward sanity blend
+        g = 0.7 * g + 0.3 * min(max(eg, -0.05), 0.12)
+    return min(max(g, GROWTH_FLOOR), GROWTH_CAP)
+
+
+def rank(survivors, mode="expret"):
+    """Rank survivors by Gordon/DDM expected return (default) or by net income.
+
+    expected_return (%) = net_yield + quality-haircut sustainable growth + cross-sectional
+    reversion. All terms in percentage points, so the score is an interpretable estimate.
+    """
     df = survivors.copy()
+    df["wht"] = df["ticker"].map(lambda t: WHT_BY_COUNTRY.get(country(t), 0.20))
+    df["net_yield"] = (df["yield_pct"] * (1 - df["wht"])).round(2)
     df["cheap_ratio"] = (df["yield_pct"] / df["yield_5y_avg"]).clip(0.5, 2.0).fillna(1.0)
     df["fcf_cover"] = df.apply(
         lambda r: r["fcf"] / (r.get("divs_paid_actual") or (r["mcap_local"] * r["yield_pct"] / 100))
         if r["lane"] == "A" and r["fcf"] and (r.get("divs_paid_actual") or (r["mcap_local"] and r["yield_pct"]))
         else None, axis=1)
-    df["wht"] = df["ticker"].map(lambda t: WHT_BY_COUNTRY.get(country(t), 0.20))
-    df["net_yield"] = (df["yield_pct"] * (1 - df["wht"])).round(2)
-    # growth: robust log-linear slope, fall back to 5y CAGR
-    df["growth"] = pd.to_numeric(df.get("div_growth"), errors="coerce").fillna(
-        pd.to_numeric(df["div_cagr5"], errors="coerce"))
-    # robust quality blend: return metric (ROIC->ROA lane A, ROE lane B) + gross profit + op margin
-    df["q_ret"] = df.apply(
-        lambda r: (r.get("roic") if pd.notna(r.get("roic")) else r.get("roa"))
-        if r["lane"] == "A" else r.get("roe"), axis=1)
-    qmat = pd.concat([zw(df["q_ret"]), zw(df["gross_prof"]), zw(df["op_margin"])], axis=1)
-    z_qual = qmat.mean(axis=1, skipna=True).fillna(0)
-    z_cheap = zw(df["cheap_ratio"])
-    z_growth = zw(df["growth"].clip(-0.10, 0.15))
-    z_safe = zw(df["fcf_cover"]).fillna(0.0)
-    df["score"] = (WEIGHTS["cheap"] * z_cheap + WEIGHTS["quality"] * z_qual
-                   + WEIGHTS["growth"] * z_growth.fillna(0) + WEIGHTS["safety"] * z_safe
-                   - TAX_TILT * df["wht"])
+
+    df["g_raw"] = df.apply(_sustainable_growth, axis=1)
+
+    def quality_factor(r):                               # 0.5..1.0, scales positive growth
+        q = r.get("roic") if (r["lane"] == "A" and pd.notna(r.get("roic"))) else r.get("roe")
+        q = _safe(q)
+        return 0.7 if q is None else min(max(0.5 + 0.5 * (q / QUAL_HAIRCUT_REF), 0.5), 1.0)
+
+    df["qf"] = df.apply(quality_factor, axis=1)
+    df["g_sust"] = df.apply(lambda r: r["g_raw"] * r["qf"] if r["g_raw"] > 0 else r["g_raw"], axis=1)
+
+    # Cross-sectional reversion: cheapness relative to the OTHER candidates (not the whole
+    # sector, against which every survivor looks cheap). FCF yield for operating cos, dividend
+    # yield for financials; demeaned within lane so it is a modest, centred re-rating tilt.
+    df["_val"] = pd.to_numeric(
+        df.apply(lambda r: r.get("fcf_yield") if r["lane"] == "A" else r.get("yield_pct"), axis=1),
+        errors="coerce")
+
+    def _lane_z(s):
+        sd = s.std(ddof=0)
+        return (s - s.mean()) / sd if sd and sd > 0 else s * 0
+
+    df["reversion"] = (df.groupby("lane", group_keys=False)["_val"].apply(_lane_z)
+                       .clip(-1.5, 1.5) * (REVERSION_PP / 1.5)).round(2)
+    df["exp_return"] = (df["net_yield"] + df["g_sust"] * 100 + df["reversion"]).round(2)
+    df["score"] = df["exp_return"]
+    df["growth"] = df["g_raw"]                            # display alias
+
     if mode == "net_income":
-        # income-first: drop melting ice cubes (shrinking dividend), then sort by net yield
-        keep = df["growth"].fillna(0) >= 0
-        df = df[keep].sort_values("net_yield", ascending=False)
+        df = df[df["g_raw"] >= 0].sort_values("net_yield", ascending=False)
     else:
-        df = df.sort_values("score", ascending=False)
+        df = df.sort_values("exp_return", ascending=False)
     return df
 
 
@@ -362,7 +411,7 @@ def rank(survivors, mode="composite"):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tickers", default=str(HERE / "universe.txt"))
-    ap.add_argument("--mode", choices=["composite", "net_income"], default="composite")
+    ap.add_argument("--mode", choices=["expret", "net_income"], default="expret")
     ap.add_argument("--max-age", type=int, default=30)
     ap.add_argument("--refresh", action="store_true")
     ap.add_argument("--rerank", action="store_true")
@@ -377,16 +426,16 @@ def main():
     ranked = rank(df[df["fails"] == ""], mode=args.mode)
     ranked.to_csv(HERE / f"screen-{date.today().isoformat()}.csv", index=False)
 
-    ranked["mom%"] = (pd.to_numeric(ranked["mom_12m"], errors="coerce") * 100).round(0)
     ranked["roic%"] = (pd.to_numeric(ranked["roic"], errors="coerce") * 100).round(0)
-    ranked["grow%"] = (pd.to_numeric(ranked["growth"], errors="coerce") * 100).round(0)
+    ranked["gsust%"] = (pd.to_numeric(ranked["g_sust"], errors="coerce") * 100).round(1)
     cols = ["ticker", "name", "sector", "yield_pct", "net_yield", "wht",
-            "cheap_ratio", "roic%", "grow%", "mom%", "div_years", "score"]
-    pd.set_option("display.width", 200)
+            "roic%", "gsust%", "reversion", "exp_return", "div_years"]
+    pd.set_option("display.width", 210)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)}  [mode: {args.mode}]  "
           f"(mcap>=${MIN_MCAP_USD/1e9:.0f}bn, yield {YIELD_MIN}-{YIELD_MAX}%, 10y uncut, "
-          f"ROIC/ROA quality, FCF cover, net leverage, trend) ===\n")
-    print(ranked[cols].head(args.top).round(3).to_string(index=False))
+          f"ROIC/ROA quality, FCF cover, net leverage, trend) ===")
+    print("exp_return = net_yield + quality-haircut growth + cross-sectional reversion (pp)\n")
+    print(ranked[cols].head(args.top).round(2).to_string(index=False))
     print(f"\nBUY CANDIDATES (top 3, {args.mode}): {', '.join(ranked['ticker'].head(3))}")
     rej = df[df["fails"] != ""][["ticker", "fails"]]
     rej.to_csv(HERE / f"rejects-{date.today().isoformat()}.csv", index=False)
