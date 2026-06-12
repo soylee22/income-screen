@@ -53,10 +53,11 @@ REVERSION_PP = 0.9           # max cross-sectional cheapness tilt (pp), kept mod
 # GFC resilience: penalty (pp) to expected return by 2008-09 dividend behaviour (trough
 # 2009/10 vs peak 2007/08). We cannot get CET1/Solvency II from Yahoo, but the dividend's
 # actual crisis survival is the outcome those capital ratios are meant to predict.
-GFC_PEN = {"held": 0.0, "trimmed": -0.6, "cut": -1.8, "zeroed": -3.0, "unproven": 0.0}
-# Names whose 2008-09 dividend drop was a corporate action (spin-off/demerger), NOT a cut.
-# Auditable, like PRA_OVERRIDE. The GFC penalty is waived for these.
-GFC_OVERRIDE = {"MO": "2008 drop = Philip Morris Intl spin-off, not a cut (64y aristocrat)"}
+# NOTE: a 2008-GFC dividend-fragility haircut was trialled then REMOVED (2026-06-12). It was
+# 18 years old under a since-changed bank-capital regime, redundant with the recent 2020/PRA
+# signal already in the gates, and the European 2008 dividend data in yfinance was unreliable
+# (Allianz missing, Credit Agricole/AXA glitched). gfc_ratio is still stored for reference but
+# is NOT used in scoring. Financials concentration is handled by the sector cap at allocation.
 
 # Dividend withholding tax for a UK ISA investor (passive, no reclaim). UK/HK/IE 0;
 # US 15% (W-8BEN; 0% in a SIPP); EU ~26%; Switzerland 35%; Japan 10% (treaty).
@@ -414,23 +415,7 @@ def rank(survivors, mode="expret"):
 
     df["reversion"] = (df.groupby("lane", group_keys=False)["_val"].apply(_lane_z)
                        .clip(-1.5, 1.5) * (REVERSION_PP / 1.5)).round(2)
-
-    def _gfc_pen(r):                                     # crisis-fragility haircut (pp)
-        if r["ticker"] in GFC_OVERRIDE:
-            return 0.0
-        x = _safe(r.get("gfc_ratio"))
-        if x is None:
-            return GFC_PEN["unproven"]
-        if x >= 0.9:
-            return GFC_PEN["held"]
-        if x >= 0.6:
-            return GFC_PEN["trimmed"]
-        if x >= 0.2:
-            return GFC_PEN["cut"]
-        return GFC_PEN["zeroed"]
-
-    df["gfc_pen"] = df.apply(_gfc_pen, axis=1)
-    df["exp_return"] = (df["net_yield"] + df["g_sust"] * 100 + df["reversion"] + df["gfc_pen"]).round(2)
+    df["exp_return"] = (df["net_yield"] + df["g_sust"] * 100 + df["reversion"]).round(2)
     df["score"] = df["exp_return"]
     df["growth"] = df["g_raw"]                            # display alias
 
@@ -463,7 +448,7 @@ def main():
     ranked["roic%"] = (pd.to_numeric(ranked["roic"], errors="coerce") * 100).round(0)
     ranked["gsust%"] = (pd.to_numeric(ranked["g_sust"], errors="coerce") * 100).round(1)
     cols = ["ticker", "name", "sector", "net_yield", "roic%", "gsust%", "reversion",
-            "gfc_pen", "exp_return", "div_years"]
+            "exp_return", "div_years"]
     pd.set_option("display.width", 210)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)}  [mode: {args.mode}]  "
           f"(mcap>=${MIN_MCAP_USD/1e9:.0f}bn, yield {YIELD_MIN}-{YIELD_MAX}%, 10y uncut, "
