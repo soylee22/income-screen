@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recovery Value Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08090b; --bg-2:#0d0e11; --panel:#101216; --raise:#13161b;
+    --hair:rgba(255,255,255,.07); --hair-2:rgba(255,255,255,.13);
+    --ink:#ECEEF1; --ink-2:#AFB4BC; --muted:#6B7079; --faint:#474C54;
+    --silver:#C6CAD0; --accent:#C8A36B; --accent-dim:rgba(200,163,107,.14);
+    --pass:#6FB39A; --flag:#C7A06B; --bad:#C77E73;
+    --sans:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+    --mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(1200px 520px at 78% -8%,rgba(200,163,107,.06),transparent 60%),
+      linear-gradient(180deg,rgba(255,255,255,.018),transparent 240px)}
+  ::selection{background:rgba(200,163,107,.28)}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#1c2026;border:3px solid var(--bg);border-radius:8px}
+  a{color:var(--accent);text-decoration:none} a:hover{color:var(--ink)}
+  strong{color:#fff;font-weight:600}
+  code{font-family:var(--mono);font-size:12px;background:var(--bg-2);border:1px solid var(--hair);padding:1.5px 6px;border-radius:4px;color:var(--silver)}
+  .mast{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+    height:54px;padding:0 26px;background:rgba(8,9,11,.78);backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--hair)}
+  .brand{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.04em;color:var(--ink)}
+  .brand .div{width:1px;height:16px;background:var(--hair-2)}
+  .brand .tag{color:var(--muted);font-weight:400;letter-spacing:.14em;font-size:10.5px;text-transform:uppercase}
+  .mast .right{display:flex;align-items:center;gap:16px;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .mast .right a{color:var(--muted);border:1px solid var(--hair);padding:5px 11px;border-radius:6px}
+  .mast .right a:hover{color:var(--ink);border-color:var(--accent)}
+  .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:60px 40px 110px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin:0 0 20px}
+  h1{font-size:clamp(32px,4.4vw,48px);line-height:1.05;letter-spacing:-.03em;font-weight:700;margin:0 0 22px;max-width:18ch}
+  .deck{font-size:17.5px;line-height:1.6;color:var(--ink-2);max-width:62ch;margin:0 0 38px}
+  .deck b{color:var(--ink)}
+  .metrics{display:flex;flex-wrap:wrap;border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:linear-gradient(180deg,var(--panel),var(--bg-2));margin:0 0 8px}
+  .metrics .m{flex:1;min-width:150px;padding:20px 24px;border-right:1px solid var(--hair)}
+  .metrics .m:last-child{border-right:0}
+  .metrics .v{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--silver);letter-spacing:-.02em;line-height:1}
+  .metrics .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-top:9px}
+  section{padding:56px 0 0}
+  .sechead{display:flex;align-items:baseline;gap:16px;margin:0 0 6px;padding-bottom:18px;border-bottom:1px solid var(--hair)}
+  .sechead .num{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;padding-top:4px}
+  .sechead h2{font-size:23px;letter-spacing:-.02em;font-weight:650;margin:0}
+  section>p{color:var(--ink-2);max-width:68ch;margin:16px 0}
+  .lead{font-size:16px;color:var(--ink)}
+  h3{font-size:14px;margin:22px 0 8px;font-weight:600}
+  ul,ol{padding-left:0;margin:13px 0;list-style:none;counter-reset:li}
+  ol li,ul li{position:relative;padding-left:30px;margin:8px 0;color:var(--ink-2);max-width:66ch}
+  ol li{counter-increment:li}
+  ol li::before{content:counter(li,decimal-leading-zero);position:absolute;left:0;top:1px;font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:500}
+  ul li::before{content:"";position:absolute;left:4px;top:11px;width:6px;height:1px;background:var(--faint)}
+  .callout{position:relative;margin:28px 0;padding:22px 26px 22px 28px;background:linear-gradient(180deg,var(--panel),var(--bg-2));border:1px solid var(--hair);border-radius:12px}
+  .callout::before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:2px;background:var(--accent);border-radius:2px}
+  .callout .tag{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .callout h3{margin:0 0 10px;font-size:16px;color:#fff}
+  .callout p{margin:9px 0;color:var(--ink-2);font-size:14.5px}
+  .eq{font-family:var(--mono);font-size:12.5px;color:var(--silver);background:var(--bg-2);border:1px solid var(--hair);border-radius:7px;padding:11px 13px;margin:12px 0}
+  .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:20px 0 14px}
+  .field{position:relative;flex:1;min-width:240px}
+  .field input{width:100%;background:var(--bg-2);border:1px solid var(--hair);color:var(--ink);font-family:var(--mono);font-size:13px;padding:11px 13px 11px 36px;border-radius:8px;outline:none}
+  .field input:focus{border-color:var(--accent)}
+  .field svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.5}
+  select{background:var(--bg-2);border:1px solid var(--hair);color:var(--ink);font-family:var(--mono);font-size:12.5px;padding:11px 13px;border-radius:8px;cursor:pointer}
+  .count{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .tablewrap{max-height:680px;overflow:auto;border:1px solid var(--hair);border-radius:12px;background:var(--bg-2)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:9px 13px;text-align:left;white-space:nowrap}
+  thead th{position:sticky;top:0;z-index:2;background:rgba(13,14,17,.94);backdrop-filter:blur(8px);font-family:var(--mono);color:var(--muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.09em;cursor:pointer;border-bottom:1px solid var(--hair-2)}
+  thead th:hover{color:var(--ink)}
+  tbody td{font-family:var(--mono);font-size:12px;color:var(--ink-2);border-bottom:1px solid var(--hair)}
+  tbody tr:hover{background:rgba(255,255,255,.025)}
+  tbody b{color:var(--ink)}
+  .pill{display:inline-block;font-size:10px;font-family:var(--mono);letter-spacing:.06em;padding:2px 9px;border-radius:20px;border:1px solid;text-transform:uppercase}
+  .pill.cand{color:var(--accent);border-color:rgba(200,163,107,.4);background:var(--accent-dim)}
+  .pill.rej{color:var(--muted);border-color:var(--hair)}
+  .up{color:var(--pass)} .dim{color:var(--faint)} .failtxt{color:var(--muted);font-size:11px}
+  footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--hair);color:var(--muted);font-size:11.5px;font-family:var(--mono);line-height:1.8}
+  footer .x{color:var(--faint)}
+  @media(max-width:820px){.wrap{padding:44px 22px 90px}}
+</style>
+</head>
+<body>
+
+<div class="mast">
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 14 L8 8 L11 11 L17 4" stroke="#C8A36B" stroke-width="1.3" fill="none"/><circle cx="17" cy="4" r="1.6" fill="#C8A36B"/></svg>
+    <span>RVS</span><span class="div"></span><span class="tag">Recovery Value Scanner</span>
+  </div>
+  <div class="right">
+    <a href="index.html">&larr; Income screen</a>
+    <span>SCRAPED&nbsp;{{SCRAPE}}</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="eyebrow">Deep value &middot; Normalized earnings</p>
+  <h1>Buy depressed earnings, not broken businesses.</h1>
+  <p class="deck">The contrarian counterpart to the income screen. It hunts operating companies whose <b>current</b> profits are cyclically or temporarily depressed but whose <b>normalized</b> (mid-cycle) earning power is intact, trading cheap on those normal earnings. Where the income screen rejects a fallen stock as a falling knife, this one asks whether the knife is mispriced.</p>
+  <div class="metrics">
+    <div class="m"><div class="v">{{NCAND}}</div><div class="k">Candidates</div></div>
+    <div class="m"><div class="v">{{NUNIV}}</div><div class="k">Operating cos</div></div>
+    <div class="m"><div class="v">12&times;</div><div class="k">Re-rating target</div></div>
+    <div class="m"><div class="v">5</div><div class="k">Quality gates</div></div>
+  </div>
+
+  <section>
+    <div class="sechead"><span class="num">01</span><h2>The thesis</h2></div>
+    <p class="lead">"What could this company earn under normal conditions and normal management?" Not what it earns today, depressed by the cycle or a fixable problem.</p>
+    <p>If a sound business is temporarily earning far below its mid-cycle margin, the market often prices it on today's bad number, sometimes at <strong>3 to 4 times normalized earnings</strong>. When earnings recover and the multiple re-rates from distressed to a normal <strong>~12 times</strong>, you are paid twice: the earnings normalise and the rating expands. That is the 3-to-4-times-your-money mechanic of recovery value (Beagles / Temple Bar school).</p>
+    <div class="eq">upside = normalized earnings &times; 12 &divide; price &minus; 1&nbsp;&nbsp;&nbsp;(recovery + re-rating)</div>
+    <p>Normalized earnings here = the <strong>winsorised median operating margin</strong> over the available years (median, so one-off disposal-gain years do not distort it) applied to current revenue, taxed. A company whose <em>current</em> margin sits well below that normal level is the candidate.</p>
+  </section>
+
+  <section>
+    <div class="sechead"><span class="num">02</span><h2>The mirror image of the income screen</h2></div>
+    <div class="callout">
+      <p class="tag">Why two tools</p>
+      <h3>This scanner buys exactly what the income screen throws away</h3>
+      <p>The income screen has a falling-knife gate: it drops any name down more than 10% over a year, because for a buy-and-hold income compounder a crashing stock is usually bad news. Recovery value makes the opposite bet, the depressed, fallen, out-of-favour names are <em>where the 3-to-4-times-normalized multiples live</em>. So the income screen's rejects are this tool's candidates. Same data, opposite stance. They are different strategies for different money: one is hold-forever income, the other is buy-cheap, sell at the re-rating in roughly five years.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><span class="num">03</span><h2>The criteria</h2></div>
+    <p>The whole risk is buying a <em>value trap</em> (cheap on "normalized" earnings that never return) rather than a recovery. The gates separate "average business that can get better" from "broken":</p>
+    <ol>
+      <li><strong>Operating company</strong>, market cap &ge; $5bn (financials excluded for now, they need price-to-book on normalized ROE, a different model)</li>
+      <li><strong>Was a real business</strong>: normalized operating margin &ge; 5% (it earns proper money in a normal year)</li>
+      <li><strong>Currently depressed</strong>: current margin below 85% of normalized (the recovery has not happened yet, so the upside is still there)</li>
+      <li><strong>Survivable</strong>: net debt / EBITDA &le; 5 and the gross margin (the franchise) still intact, so it lives long enough to recover</li>
+      <li><strong>Cheap on normalized</strong>: normalized P/E &le; 12, and not in active free-fall (not down &gt;60% in a year, which usually means genuinely broken)</li>
+    </ol>
+    <p>Survivors are ranked by <strong>implied upside</strong>: normalized earnings at a 12&times; multiple versus today's price.</p>
+  </section>
+
+  <section>
+    <div class="sechead"><span class="num">04</span><h2>What it cannot do</h2></div>
+    <div class="callout">
+      <p class="tag">Honest limits</p>
+      <h3>Thin data, and the recovery may never come</h3>
+      <p>Two real caveats. First, the normalization is only as good as the history: Yahoo gives roughly four years of income statements, not the seven-to-ten a proper through-cycle average wants, so a company depressed for all four years can look "normal" at its depressed level. Second, and fundamentally, this strategy is right only when the earnings actually recover. A genuine structural decline (not a cycle) is a value trap that stays cheap forever. The gates filter for survivability and an intact franchise, but they cannot tell a cyclical dip from a terminal one, that is a forward judgement on the business, which stays with you. The scanner finds the candidates; it does not promise the recovery.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead"><span class="num">05</span><h2>Candidates</h2></div>
+    <p>All {{NUNIV}} operating companies, candidates first by upside. <strong>Norm%</strong> = normalized margin, <strong>Cur%</strong> = current margin (the gap is the recovery runway), <strong>NormPE</strong> = price on normalized earnings, <strong>Up%</strong> = implied upside. Search and click headers to sort. The <code>fails</code> column shows why a name was rejected.</p>
+    <div class="controls">
+      <div class="field"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="q" placeholder="search ticker / name / sector / reason"></div>
+      <select id="filt"><option value="all">All</option><option value="CAND">Candidates only</option><option value="reject">Rejects only</option></select>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="tablewrap"><table id="t">
+      <thead><tr>
+        <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
+        <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
+        <th data-k="norm">Norm%</th><th data-k="cur">Cur%</th><th data-k="gap">Gap</th>
+        <th data-k="npe">NormPE</th><th data-k="lev">NetLev</th><th data-k="up">Up%</th>
+        <th data-k="status">Status</th><th data-k="fails">Fails</th>
+      </tr></thead><tbody id="tb"></tbody>
+    </table></div>
+  </section>
+
+  <footer>
+    <span class="x">RVS</span> &middot; Recovery Value Scanner &middot; companion to the <a href="index.html">income screen</a> &middot; data {{SCRAPE}} &middot; built {{GENERATED}}<br>
+    <span class="x">Research tool, not advice. Recovery value depends on earnings actually normalising; a structural decline is a value trap.</span>
+  </footer>
+</div>
+
+<script>
+const DATA = {{DATA}};
+let sortK="rank", sortAsc=true;
+const tb=document.getElementById('tb'), q=document.getElementById('q'),
+      filt=document.getElementById('filt'), count=document.getElementById('count');
+function cell(v){return v===null||v===undefined||v===""?'<span class="dim">.</span>':v;}
+function render(){
+  const term=q.value.toLowerCase(), f=filt.value;
+  let rows=DATA.filter(r=>{
+    if(f!=="all"&&r.status!==f)return false;
+    if(!term)return true;
+    return (r.ticker+' '+r.name+' '+r.sector+' '+r.country+' '+r.fails).toLowerCase().includes(term);
+  });
+  rows.sort((a,b)=>{let x=a[sortK],y=b[sortK];
+    if(x===""||x===null)x=sortAsc?1e9:-1e9; if(y===""||y===null)y=sortAsc?1e9:-1e9;
+    if(typeof x==="string")return sortAsc?x.localeCompare(y):y.localeCompare(x);
+    return sortAsc?x-y:y-x;});
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td class="dim">${cell(r.rank)}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
+    <td>${r.country}</td><td>${r.sector}</td>
+    <td>${cell(r.norm)}</td><td>${cell(r.cur)}</td>
+    <td>${r.gap!==null&&r.gap<0.85?'<span class="up">'+r.gap+'</span>':cell(r.gap)}</td>
+    <td>${cell(r.npe)}</td><td>${cell(r.lev)}</td>
+    <td><b class="up">${cell(r.up!==null?r.up+'%':null)}</b></td>
+    <td><span class="pill ${r.status==='CAND'?'cand':'rej'}">${r.status}</span></td>
+    <td class="failtxt">${r.fails}</td></tr>`).join('');
+  count.textContent=rows.length+' / '+DATA.length;
+}
+document.querySelectorAll('#t th[data-k]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.k; if(sortK===k)sortAsc=!sortAsc; else{sortK=k;sortAsc=true;} render();});
+q.oninput=render; filt.onchange=render; render();
+</script>
+</body></html>
