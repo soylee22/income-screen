@@ -175,6 +175,31 @@ def _row(df, *names):
     return None
 
 
+def _series(df, *names):
+    """Full row series (all years) for the first present line item."""
+    if df is None or df.empty:
+        return None
+    for n in names:
+        if n in df.index:
+            s = pd.to_numeric(df.loc[n], errors="coerce").dropna()
+            if len(s):
+                return s
+    return None
+
+
+def margins_from_income(inc):
+    """(normalized, current) operating margin. Normalized = winsorised MEDIAN op margin over
+    the available years (robust to one-off disposal-gain years). Informational context only:
+    is this name's current earnings depressed or elevated vs its own normal?"""
+    rev, ebit = _series(inc, "Total Revenue"), _series(inc, "EBIT", "Operating Income")
+    if rev is None or ebit is None:
+        return None, None
+    m = (ebit / rev).dropna()
+    if len(m) < 2:
+        return None, None
+    return float(m.clip(m.quantile(0.1), m.quantile(0.9)).median()), float(m.iloc[0])
+
+
 def fcf_from_statement(cf):
     fcf = divs_paid = None
     if cf is not None and not cf.empty:
@@ -213,10 +238,13 @@ def fetch_one(symbol):
     yearly = annual_dividends(t)
     years, uncut, cagr5 = div_record(yearly)
     fcf = divs_paid_actual = roic = gross_prof = cash = None
+    norm_margin = cur_margin = None
     if sector not in FINANCIAL_SECTORS:                  # operating cos: pull statements
         try:
+            inc = t.income_stmt
             fcf, divs_paid_actual = fcf_from_statement(t.cashflow)
-            roic, gross_prof, cash = roic_from_statements(t.income_stmt, t.balance_sheet)
+            roic, gross_prof, cash = roic_from_statements(inc, t.balance_sheet)
+            norm_margin, cur_margin = margins_from_income(inc)
         except Exception as e:
             print(f"    {symbol} statement fetch partial: {e}", file=sys.stderr)
     if fcf is None:
@@ -230,6 +258,7 @@ def fetch_one(symbol):
         "roe": info.get("returnOnEquity"), "roa": info.get("returnOnAssets"),
         "op_margin": info.get("operatingMargins"), "gross_margin": info.get("grossMargins"),
         "roic": roic, "gross_prof": gross_prof,
+        "rec_norm_margin": norm_margin, "rec_cur_margin": cur_margin,
         "fcf": fcf, "divs_paid_actual": divs_paid_actual, "cash": cash,
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
         "div_years": years, "uncut_10y": uncut, "gfc_ratio": gfc_ratio(yearly),
@@ -279,7 +308,8 @@ def fetch_universe(tickers, max_age_days):
 # -------------------------------- gates --------------------------------
 EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pct",
                  "yield_5y_avg", "payout_ratio", "roe", "roa", "op_margin", "gross_margin",
-                 "roic", "gross_prof", "fcf", "divs_paid_actual", "cash", "total_debt",
+                 "roic", "gross_prof", "rec_norm_margin", "rec_cur_margin",
+                 "fcf", "divs_paid_actual", "cash", "total_debt",
                  "ebitda", "div_years", "uncut_10y", "gfc_ratio", "div_cagr5", "div_growth",
                  "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
                  "mom_12m", "px", "sma200", "wk52high"]

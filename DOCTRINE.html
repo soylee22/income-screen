@@ -198,7 +198,6 @@
     <span class="tag">Income Snowball Screen</span>
   </div>
   <div class="right">
-    <a href="recovery.html" style="color:var(--muted);border:1px solid var(--hair);padding:5px 11px;border-radius:6px">Recovery scanner &rarr;</a>
     <span class="dot"><i></i>LIVE</span>
     <span>SCRAPED&nbsp;{{SCRAPE}}</span>
   </div>
@@ -344,7 +343,7 @@
 
   <section id="data">
     <div class="sechead"><span class="num">09</span><h2>Data explorer</h2></div>
-    <p>All {{NUNIV}} names, survivors first. Two ranking lenses: <strong>Expected return</strong> (Gordon/DDM estimate: net yield + quality-haircut sustainable growth + cross-sectional reversion, in real percentage points) and <strong>Net income</strong> (highest net yield first, growth-guarded). Switch below; the gates are identical, only the ordering of survivors changes.</p>
+    <p>All {{NUNIV}} names, survivors first. Two ranking lenses: <strong>Expected return</strong> (Gordon/DDM estimate: net yield + quality-haircut sustainable growth + cross-sectional reversion, in real percentage points) and <strong>Net income</strong> (highest net yield first, growth-guarded). Switch below; the gates are identical, only the ordering of survivors changes. The <strong>Mgn</strong> column is informational only (operating companies): current operating margin divided by its own normalised (median) level, so below ~0.85 the earnings backing the dividend are currently depressed (recovery runway), above ~1.15 they are running hot (reversion risk). It does not affect the gates or the ranking.</p>
     <div class="modebar">
       <button class="modebtn on" data-mode="comp">Expected return</button>
       <button class="modebtn" data-mode="ni">Net income</button>
@@ -367,7 +366,7 @@
         <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
         <th data-k="yield">Yld%</th><th data-k="nety">Net%</th><th data-k="wht">WHT</th>
-        <th data-k="roic">ROIC</th><th data-k="gsust">Grow%</th><th data-k="rev">Rev</th><th data-k="exp">ExpRet%</th>
+        <th data-k="roic">ROIC</th><th data-k="gsust">Grow%</th><th data-k="rev">Rev</th><th data-k="mgap">Mgn</th><th data-k="exp">ExpRet%</th>
         <th data-k="mom">12m%</th><th data-k="years">Yrs</th>
         <th data-k="status">Status</th><th data-k="fails">Fails</th>
       </tr></thead>
@@ -411,6 +410,7 @@ function render(){
     <td>${r.roic!==null?r.roic+'%':cell(r.qual!==null?r.qual+'%':null)}</td>
     <td>${r.gsust!==null&&r.gsust<0?'<span class="failtxt">'+r.gsust+'%</span>':(r.gsust!==null?r.gsust+'%':cell(null))}</td>
     <td class="dim">${r.rev!==null?(r.rev>0?'+':'')+r.rev:cell(null)}</td>
+    <td>${r.mgap!==null&&r.mgap<0.85?'<span class="failtxt">'+r.mgap+'</span>':(r.mgap!==null&&r.mgap>1.15?'<span class="cheapy">'+r.mgap+'</span>':cell(r.mgap))}</td>
     <td><b class="cheapy">${cell(r.exp!==null?r.exp+'%':null)}</b></td>
     <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>
     <td>${cell(r.years)}</td>

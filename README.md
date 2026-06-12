@@ -34,6 +34,27 @@ fetched within `--max-age` days (default 30) and fetches only the stale/missing 
 expensive 690-name pull happens once and updates incrementally. The store falls back to stale
 data if a live fetch fails, so a name is never silently dropped on a bad Yahoo response.
 
+## Recovery-value scanner (companion tool)
+
+`recovery.py` is the deep-value counterpart to the income screen, the Beagles/normalized-earnings
+strategy. It finds operating companies whose CURRENT margins are depressed but whose NORMALIZED
+(winsorised-median operating margin over available years x current revenue) earning power is intact,
+trading cheap on normalized earnings. It deliberately INVERTS the income screen's falling-knife
+gate: the fallen names the income screen rejects are this tool's candidates.
+
+```bash
+python3 recovery.py --topup     # backfill normalized-margin fields (income statements, ~30min, lane-A only)
+python3 recovery.py             # scan; ranks by implied upside = norm_earnings x12 / price - 1
+python3 gen_recovery.py         # build docs/recovery.html
+```
+
+Gates: mcap >=$5bn, normalized margin >=5% (real business), currently depressed (<85% of normal),
+survivable (net debt/EBITDA <=5, gross margin intact), cheap on normalized (PE <=12), not collapsing
+(>-60% 12m). Financials excluded (need P/B-on-normalized-ROE, a v2). Honest limits: yfinance gives
+~4yr of statements (not the 7-10 for proper normalization); a structural decline is a value trap the
+gates cannot distinguish from a cyclical dip. Live at /recovery.html, linked from the income dashboard.
+`publish.sh` builds and pushes both pages.
+
 ## PRA override (UK financials)
 
 `PRA_OVERRIDE` in `screen.py` is a documented list of UK banks/insurers the Bank of England's
