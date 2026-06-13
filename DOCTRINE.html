@@ -145,10 +145,11 @@
     font-family:var(--mono);font-size:12.5px;padding:11px 13px;border-radius:8px;outline:none;cursor:pointer}
   .count{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em;white-space:nowrap}
   .modebar{display:flex;align-items:center;gap:10px;margin:18px 0 4px;flex-wrap:wrap}
-  .modebtn{font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:8px 16px;
+  .modebtn,.floorbtn{font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:8px 16px;
     background:var(--bg-2);border:1px solid var(--hair);color:var(--muted);border-radius:7px;cursor:pointer;transition:all .15s}
-  .modebtn:hover{color:var(--ink)}
-  .modebtn.on{background:var(--accent-dim);border-color:var(--accent);color:var(--ink)}
+  .modebtn:hover,.floorbtn:hover{color:var(--ink)}
+  .modebtn.on,.floorbtn.on{background:var(--accent-dim);border-color:var(--accent);color:var(--ink)}
+  .barsep{width:1px;height:20px;background:var(--hair-2);margin:0 4px}
   .toppick{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:6px}
   .toppick b{color:var(--silver)}
   .tablewrap{max-height:680px;overflow:auto;border:1px solid var(--hair);border-radius:12px;
@@ -348,8 +349,12 @@
     <div class="modebar">
       <button class="modebtn on" data-mode="comp">Expected return</button>
       <button class="modebtn" data-mode="ni">Net income</button>
+      <span class="barsep"></span>
+      <button class="floorbtn on" data-floor="income">Income 3%</button>
+      <button class="floorbtn" data-floor="broad">Broad 1.5%</button>
       <span class="toppick" id="toppick"></span>
     </div>
+    <p style="font-size:13px;color:var(--muted);margin:2px 0 0">The <strong>Broad 1.5%</strong> floor lets in strong lower-yield quality (JP Morgan, Merck, McDonald's). They rank where their income puts them, below the high yielders, so it widens the menu without crowding the top. Income 3% is the snowball default.</p>
     <div class="controls">
       <div class="field">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -384,27 +389,33 @@
 
 <script>
 const DATA = {{DATA}};
-let sortK="rank", sortAsc=true, mode="comp";
-const COMP_TOP="{{COMP_TOP}}", NI_TOP="{{NI_TOP}}";
+let mode="comp", floor="income", sortK="rank", sortAsc=true;
 const tb=document.getElementById('tb'), q=document.getElementById('q'),
       filt=document.getElementById('filt'), count=document.getElementById('count'),
       toppick=document.getElementById('toppick');
 function cell(v){return v===null||v===undefined||v===""?'<span class="dim">.</span>':v;}
+function isSurv(r){return (floor==="income"?r.p3:r.p15) && (mode!=="ni" || (r.g!==null&&r.g>=0));}
+function sval(r){return mode==="ni" ? (r.nety==null?-1e9:r.nety) : (r.exp==null?-1e9:r.exp);}
+function failsOf(r){return floor==="income"?r.fails3:r.fails15;}
 function render(){
   const term=q.value.toLowerCase(), f=filt.value;
-  let rows=DATA.filter(r=>{
-    if(f!=="all"&&r.status!==f)return false;
+  let rows=DATA.map(r=>({...r,_s:isSurv(r),_f:failsOf(r)})).filter(r=>{
+    if(f==="PASS"&&!r._s)return false;
+    if(f==="reject"&&r._s)return false;
     if(!term)return true;
-    return (r.ticker+' '+r.name+' '+r.sector+' '+r.country+' '+r.fails).toLowerCase().includes(term);
+    return (r.ticker+' '+r.name+' '+r.sector+' '+r.country+' '+r._f).toLowerCase().includes(term);
   });
-  rows.sort((a,b)=>{
-    let x=a[sortK],y=b[sortK];
-    if(x===""||x===null)x=sortAsc?1e9:-1e9; if(y===""||y===null)y=sortAsc?1e9:-1e9;
-    if(typeof x==="string")return sortAsc?x.localeCompare(y):y.localeCompare(x);
-    return sortAsc?x-y:y-x;
-  });
-  tb.innerHTML=rows.map(r=>`<tr>
-    <td class="dim">${cell(r.rank)}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
+  if(sortK==="rank"){
+    rows.sort((a,b)=> (a._s!==b._s)?(a._s?-1:1) : (sval(b)-sval(a)));
+  }else{
+    rows.sort((a,b)=>{let x=a[sortK],y=b[sortK];
+      if(x===""||x==null)x=sortAsc?1e9:-1e9; if(y===""||y==null)y=sortAsc?1e9:-1e9;
+      if(typeof x==="string")return sortAsc?x.localeCompare(y):y.localeCompare(x);
+      return sortAsc?x-y:y-x;});
+  }
+  let rk=0;
+  tb.innerHTML=rows.map(r=>{const rank=r._s?(++rk):"";return `<tr>
+    <td class="dim">${rank||'<span class="dim">.</span>'}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
     <td>${r.country}</td><td>${r.sector}</td>
     <td>${cell(r.yield)}</td><td><b>${cell(r.nety)}</b></td>
     <td class="dim">${r.wht?r.wht+'%':'0%'}</td>
@@ -415,24 +426,25 @@ function render(){
     <td><b class="cheapy">${cell(r.exp!==null?r.exp+'%':null)}</b></td>
     <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>
     <td>${cell(r.years)}</td>
-    <td><span class="pill ${r.status==='PASS'?'pass':'rej'}">${r.status}</span>${r.ovr?'<span class="pill ovr">PRA</span>':''}</td>
-    <td class="failtxt">${r.fails}</td></tr>`).join('');
+    <td><span class="pill ${r._s?'pass':'rej'}">${r._s?'PASS':'reject'}</span>${r.ovr?'<span class="pill ovr">PRA</span>':''}</td>
+    <td class="failtxt">${r._f}</td></tr>`;}).join('');
   count.textContent=rows.length+' / '+DATA.length+' names';
+  const survs=DATA.filter(isSurv).sort((a,b)=>sval(b)-sval(a));
+  toppick.innerHTML=(mode==="ni"?'Top net income: ':'Top expected return: ')
+    +'<b>'+survs.slice(0,3).map(r=>r.ticker).join(', ')+'</b> &middot; '+survs.length+' survivors';
 }
 document.querySelectorAll('#t th[data-k]').forEach(th=>th.onclick=()=>{
-  const k=th.dataset.k; if(sortK===k)sortAsc=!sortAsc; else{sortK=k;sortAsc=true;} render();
+  const k=th.dataset.k; if(k==="rank")sortK="rank"; else if(sortK===k)sortAsc=!sortAsc; else{sortK=k;sortAsc=true;} render();
 });
 document.querySelectorAll('.modebtn').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.modebtn').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on'); mode=b.dataset.mode;
-  sortK = mode==="ni" ? "nirank" : "rank"; sortAsc=true; setTop(); render();
+  b.classList.add('on'); mode=b.dataset.mode; sortK="rank"; render();
 });
-function setTop(){
-  toppick.innerHTML = mode==="ni"
-    ? 'Top net income: <b>'+NI_TOP+'</b>'
-    : 'Top expected return: <b>'+COMP_TOP+'</b>';
-}
-q.oninput=render; filt.onchange=render; setTop(); render();
+document.querySelectorAll('.floorbtn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.floorbtn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); floor=b.dataset.floor; sortK="rank"; render();
+});
+q.oninput=render; filt.onchange=render; render();
 
 // scrollspy
 const links=[...document.querySelectorAll('nav.toc a')];

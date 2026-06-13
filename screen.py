@@ -486,11 +486,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tickers", default=str(HERE / "universe.txt"))
     ap.add_argument("--mode", choices=["expret", "net_income"], default="expret")
+    ap.add_argument("--yield-min", type=float, default=None,
+                    help="override the yield floor (default 3.0); e.g. 1.5 to include lower-yield quality")
     ap.add_argument("--max-age", type=int, default=30)
     ap.add_argument("--refresh", action="store_true")
     ap.add_argument("--rerank", action="store_true")
     ap.add_argument("--top", type=int, default=15)
     args = ap.parse_args()
+    if args.yield_min is not None:
+        global YIELD_MIN
+        YIELD_MIN = args.yield_min
     max_age = None if args.refresh else (10**6 if args.rerank else args.max_age)
 
     tickers = [l.strip() for l in Path(args.tickers).read_text().splitlines()
