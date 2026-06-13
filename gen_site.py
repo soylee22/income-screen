@@ -75,6 +75,8 @@ for _, r in df.iterrows():
         "mgap": num(r.get("rec_cur_margin") / r.get("rec_norm_margin"), 2)
         if (r.get("rec_norm_margin") and r.get("rec_cur_margin") is not None
             and not pd.isna(r.get("rec_norm_margin")) and r.get("rec_norm_margin") != 0) else None,
+        "epsg": num(r.get("ni_cagr") * 100, 0)
+        if (r.get("ni_cagr") is not None and not pd.isna(r.get("ni_cagr"))) else None,
         "exp": num(exp_map.get(t), 1),
         "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
         "years": r.get("div_years"),

@@ -42,6 +42,10 @@ MIN_FCF_COVER = 1.3                       # FCF / dividends paid, lane A
 MAX_NET_LEVERAGE = 4.0                    # (total debt - cash) / EBITDA, lane A
 MOM_12M_MIN = -0.10                       # falling-knife: drop names down >10% over 12m
 MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day average
+MIN_NI_CAGR = -0.10                       # earnings-freefall gate (lane A): drop only names whose
+                                          # net income has fallen >10%/yr over the cycle. Profit not
+                                          # revenue, so tobacco/staples cash-machines (flat revenue,
+                                          # rising earnings via pricing/buybacks) are spared.
 
 # Ranking: Gordon/DDM expected return = net yield + sustainable growth + cross-sectional
 # reversion. Growth is capped (DMS: long-run real div growth ~1.8%/yr, so high growth
@@ -200,6 +204,20 @@ def margins_from_income(inc):
     return float(m.clip(m.quantile(0.1), m.quantile(0.9)).median()), float(m.iloc[0])
 
 
+def growth_from_income(inc):
+    """(revenue CAGR, net-income CAGR) over the available years, ~3yr from Yahoo's 4 columns.
+    The business-growth gate: is the dividend growing on a growing business or a shrinking one?"""
+    def cagr(s):
+        if s is None or len(s) < 2:
+            return None
+        old, new = float(s.iloc[-1]), float(s.iloc[0])     # iloc[-1] oldest, iloc[0] newest
+        if old <= 0 or new <= 0:
+            return None
+        return (new / old) ** (1 / (len(s) - 1)) - 1
+    return cagr(_series(inc, "Total Revenue")), \
+        cagr(_series(inc, "Net Income", "Net Income Common Stockholders"))
+
+
 def fcf_from_statement(cf):
     fcf = divs_paid = None
     if cf is not None and not cf.empty:
@@ -238,13 +256,14 @@ def fetch_one(symbol):
     yearly = annual_dividends(t)
     years, uncut, cagr5 = div_record(yearly)
     fcf = divs_paid_actual = roic = gross_prof = cash = None
-    norm_margin = cur_margin = None
+    norm_margin = cur_margin = rev_cagr = ni_cagr = None
     if sector not in FINANCIAL_SECTORS:                  # operating cos: pull statements
         try:
             inc = t.income_stmt
             fcf, divs_paid_actual = fcf_from_statement(t.cashflow)
             roic, gross_prof, cash = roic_from_statements(inc, t.balance_sheet)
             norm_margin, cur_margin = margins_from_income(inc)
+            rev_cagr, ni_cagr = growth_from_income(inc)
         except Exception as e:
             print(f"    {symbol} statement fetch partial: {e}", file=sys.stderr)
     if fcf is None:
@@ -259,6 +278,7 @@ def fetch_one(symbol):
         "op_margin": info.get("operatingMargins"), "gross_margin": info.get("grossMargins"),
         "roic": roic, "gross_prof": gross_prof,
         "rec_norm_margin": norm_margin, "rec_cur_margin": cur_margin,
+        "rev_cagr": rev_cagr, "ni_cagr": ni_cagr,
         "fcf": fcf, "divs_paid_actual": divs_paid_actual, "cash": cash,
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
         "div_years": years, "uncut_10y": uncut, "gfc_ratio": gfc_ratio(yearly),
@@ -309,7 +329,7 @@ def fetch_universe(tickers, max_age_days):
 EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pct",
                  "yield_5y_avg", "payout_ratio", "roe", "roa", "op_margin", "gross_margin",
                  "roic", "gross_prof", "rec_norm_margin", "rec_cur_margin",
-                 "fcf", "divs_paid_actual", "cash", "total_debt",
+                 "rev_cagr", "ni_cagr", "fcf", "divs_paid_actual", "cash", "total_debt",
                  "ebitda", "div_years", "uncut_10y", "gfc_ratio", "div_cagr5", "div_growth",
                  "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
                  "mom_12m", "px", "sma200", "wk52high"]
@@ -361,6 +381,11 @@ def apply_gates(df):
             if ebitda and ebitda > 0 and r.get("total_debt") is not None:
                 net_debt = r["total_debt"] - (r.get("cash") or 0)
                 if net_debt / ebitda > MAX_NET_LEVERAGE: fails.append("leverage")
+            # earnings-freefall gate: drop only genuine multi-year earnings deterioration (the
+            # dividend's backing is collapsing). Profit not revenue; lenient on missing data.
+            nc = r.get("ni_cagr")
+            if nc is not None and not pd.isna(nc) and nc < MIN_NI_CAGR:
+                fails.append("earnings_freefall")
         mom, px, sma = r.get("mom_12m"), r.get("px"), r.get("sma200")
         if (mom is not None and mom < MOM_12M_MIN) or (px and sma and (px / sma - 1) < MOM_VS_200D_MIN):
             fails.append("downtrend")
