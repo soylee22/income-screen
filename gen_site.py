@@ -89,6 +89,7 @@ for _, r in df.iterrows():
         "exp": num(exp_map.get(t), 1),
         "mom": num(r.get("mom_12m") * 100, 1) if r.get("mom_12m") is not None else None,
         "years": r.get("div_years"),
+        "streak": r.get("div_streak"),
         "g": num(growth_map.get(t), 3),                    # for the net-income growth guard
         "p3": fails3.get(t, "x") == "", "p15": r["fails"] == "",
         "fails3": fails3.get(t, ""), "fails15": r["fails"],

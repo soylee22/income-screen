@@ -53,6 +53,12 @@ MIN_NI_CAGR = -0.10                       # earnings-freefall gate (lane A): dro
 GROWTH_CAP = 0.08            # never credit more than 8% sustainable dividend growth
 GROWTH_FLOOR = -0.03         # floor a mild decline (gates already require uncut record)
 QUAL_HAIRCUT_REF = 0.15      # ROIC/ROE at which positive growth gets full credit
+STREAK_FULL = 10             # consecutive annual raises for full growth credibility
+STREAK_FLOOR = 0.6           # growth-credit multiplier for a zero/broken raise streak
+# Streak weights growth CREDIBILITY, not return: a high div_growth off a short streak is
+# rebound-from-a-cut (Aviva-type) and gets discounted; a clean raiser keeps full credit.
+# Multiplicative (not an additive pp bonus) so exp_return stays an honest return estimate
+# and we don't stack a style-biased term on top of the quality haircut.
 REVERSION_PP = 0.9           # max cross-sectional cheapness tilt (pp), kept modest
 # GFC resilience: penalty (pp) to expected return by 2008-09 dividend behaviour (trough
 # 2009/10 vs peak 2007/08). We cannot get CET1/Solvency II from Yahoo, but the dividend's
@@ -154,6 +160,36 @@ def gfc_ratio(yearly):
     if pre <= 0:
         return None
     return min(yearly.get(2009, 0), yearly.get(2010, 0)) / pre
+
+
+def raise_streak(yearly):
+    """Consecutive annual dividend INCREASES ending at the latest complete year.
+
+    The costly, forward-looking signalling event (Bhattacharya 1979; Miller-Rock 1985):
+    a board only raises if it believes the cash flow is durable, because a later cut is
+    punished hard. This is distinct from merely not cutting (uncut_10y gate) and is
+    empirically orthogonal to div_growth/div_years in our universe (r<0.3), so it carries
+    new information. Used in rank() to weight growth CREDIBILITY: rebound growth off a cut
+    (short streak) is discounted; a clean raiser keeps full credit.
+
+    Bridges the 2020/21 PRA-forced cuts the same way div_record does, so a regulator-banned
+    dividend (UK banks/insurers in 2020) does not reset an otherwise unbroken raiser."""
+    if yearly is None or yearly.empty:
+        return 0
+    y = yearly[yearly > 0]
+    if len(y) < 2:
+        return 0
+    idx, vals = list(y.index), list(y.values)
+    recovered = (2019 in y.index and y.loc[2019] > 0 and vals[-1] >= 0.9 * y.loc[2019])
+    streak = 0
+    for i in range(len(vals) - 1, 0, -1):
+        if vals[i] > vals[i - 1] * 1.001:                # genuine raise (1% tol absorbs FX noise)
+            streak += 1
+        elif idx[i] in (2020, 2021) and recovered:       # bridge the COVID/PRA dip
+            continue
+        else:
+            break
+    return streak
 
 
 def robust_div_growth(yearly):
@@ -283,6 +319,7 @@ def fetch_one(symbol):
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
         "div_years": years, "uncut_10y": uncut, "gfc_ratio": gfc_ratio(yearly),
         "div_cagr5": cagr5, "div_growth": robust_div_growth(yearly),
+        "div_streak": raise_streak(yearly),
         "earnings_growth": info.get("earningsGrowth"), "revenue_growth": info.get("revenueGrowth"),
         "trailing_pe": info.get("trailingPE"), "forward_pe": info.get("forwardPE"),
         "beta": info.get("beta"),
@@ -331,6 +368,7 @@ EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pc
                  "roic", "gross_prof", "rec_norm_margin", "rec_cur_margin",
                  "rev_cagr", "ni_cagr", "fcf", "divs_paid_actual", "cash", "total_debt",
                  "ebitda", "div_years", "uncut_10y", "gfc_ratio", "div_cagr5", "div_growth",
+                 "div_streak",
                  "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
                  "mom_12m", "px", "sma200", "wk52high"]
 
@@ -455,7 +493,14 @@ def rank(survivors, mode="expret"):
         return 0.7 if q is None else min(max(0.5 + 0.5 * (q / QUAL_HAIRCUT_REF), 0.5), 1.0)
 
     df["qf"] = df.apply(quality_factor, axis=1)
-    df["g_sust"] = df.apply(lambda r: r["g_raw"] * r["qf"] if r["g_raw"] > 0 else r["g_raw"], axis=1)
+
+    def streak_factor(r):                                # 0.6..1.0, scales positive growth
+        s = _safe(r.get("div_streak"), 0.0)
+        return min(max(STREAK_FLOOR + (1 - STREAK_FLOOR) * s / STREAK_FULL, STREAK_FLOOR), 1.0)
+
+    df["sf"] = df.apply(streak_factor, axis=1)
+    df["g_sust"] = df.apply(
+        lambda r: r["g_raw"] * r["qf"] * r["sf"] if r["g_raw"] > 0 else r["g_raw"], axis=1)
 
     # Cross-sectional reversion: cheapness relative to the OTHER candidates (not the whole
     # sector, against which every survivor looks cheap). FCF yield for operating cos, dividend
@@ -508,7 +553,7 @@ def main():
     ranked["roic%"] = (pd.to_numeric(ranked["roic"], errors="coerce") * 100).round(0)
     ranked["gsust%"] = (pd.to_numeric(ranked["g_sust"], errors="coerce") * 100).round(1)
     cols = ["ticker", "name", "sector", "net_yield", "roic%", "gsust%", "reversion",
-            "exp_return", "div_years"]
+            "exp_return", "div_years", "div_streak"]
     pd.set_option("display.width", 210)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)}  [mode: {args.mode}]  "
           f"(mcap>=${MIN_MCAP_USD/1e9:.0f}bn, yield {YIELD_MIN}-{YIELD_MAX}%, 10y uncut, "

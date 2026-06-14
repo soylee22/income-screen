@@ -270,9 +270,10 @@
         <p style="font-family:var(--mono);font-size:12.5px;color:var(--silver);background:var(--bg-2);border:1px solid var(--hair);border-radius:7px;padding:11px 13px;margin:10px 0">exp return = net&nbsp;yield + sustainable&nbsp;growth + reversion</p>
         <ul>
           <li><strong>Net yield</strong>: after-withholding-tax current yield (the income, which a pure factor blend leaves out)</li>
-          <li><strong>Sustainable growth</strong>: robust 8-year dividend-growth slope blended with a forward estimate, <strong>capped at 8%</strong> (long-run real growth is ~1.8%/yr, so high growth must not be trusted at face value) and haircut by ROIC quality</li>
+          <li><strong>Sustainable growth</strong>: robust 8-year dividend-growth slope blended with a forward estimate, <strong>capped at 8%</strong> (long-run real growth is ~1.8%/yr, so high growth must not be trusted at face value), haircut by ROIC quality <strong>and by the raise streak</strong> (below)</li>
           <li><strong>Reversion</strong>: a modest cross-sectional cheapness tilt (FCF yield vs the other candidates), the evidence-backed form of value</li>
         </ul>
+        <p style="font-size:13px;color:var(--muted);margin-top:12px">The <strong>raise streak</strong> (<span style="font-family:var(--mono)">Strk</span> column) is consecutive annual dividend increases, bridged across the 2020/21 PRA-forced cuts. It does not add return; it weights how much of the growth we believe. A dividend raise is a costly, forward-looking signal (Bhattacharya 1979; Miller-Rock 1985): a board only raises when it judges the cash flow durable. So a high growth figure off a <em>short</em> streak is rebound-from-a-cut and is discounted, while a clean long-streak raiser keeps full growth credit. This is empirically near-orthogonal to yield, years and growth in our universe, so it adds information rather than double-counting. It is a credibility multiplier, never an additive bonus, so the expected-return number stays honest.</p>
         <p style="font-size:13px;color:var(--muted);margin-top:12px">The estimate is deliberately <strong>forward-looking</strong>. A 2008-crisis dividend-fragility penalty was trialled and removed: it was 18 years old under a since-changed bank-capital regime, redundant with the recent 2020 stress already in the gates, and the European 2008 dividend data was too unreliable to score fairly. The financials concentration it was meant to fix is handled at allocation by the sector cap, not by baking an old event into the number.</p>
         <p style="font-size:13px;color:var(--muted);margin-top:12px">This is the theory of dividend returns, not an arbitrary weighting. It dissolves the old yield-vs-growth argument: a high yielder and a fast grower are scored on the same expected-return basis and the maths decides. Two lanes: financials and REITs use ROE (the right metric for them) and skip the ROIC/cash-cover/leverage gates.</p>
         <p style="font-size:13px;color:var(--muted);margin-top:10px">Section 09 offers a second lens: <strong>Net income</strong> sorts survivors by net yield with a dividend-growth guard, for maximum income now.</p>
@@ -373,7 +374,7 @@
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
         <th data-k="yield">Yld%</th><th data-k="nety">Net%</th><th data-k="wht">WHT</th>
         <th data-k="roic">ROIC</th><th data-k="gsust">DivG%</th><th data-k="epsg">EpsG%</th><th data-k="mgap">Mgn</th><th data-k="exp">ExpRet%</th>
-        <th data-k="mom">12m%</th><th data-k="years">Yrs</th>
+        <th data-k="mom">12m%</th><th data-k="years">Yrs</th><th data-k="streak" title="Consecutive annual dividend increases (raise streak); weights growth credibility in the rank">Strk</th>
         <th data-k="status">Status</th><th data-k="fails">Fails</th>
       </tr></thead>
       <tbody id="tb"></tbody>
@@ -426,6 +427,7 @@ function render(){
     <td><b class="cheapy">${cell(r.exp!==null?r.exp+'%':null)}</b></td>
     <td>${r.mom!==null&&r.mom<-10?'<span class="failtxt">'+r.mom+'</span>':cell(r.mom)}</td>
     <td>${cell(r.years)}</td>
+    <td>${r.streak!=null&&r.streak>=10?'<span class="cheapy">'+r.streak+'</span>':cell(r.streak)}</td>
     <td><span class="pill ${r._s?'pass':'rej'}">${r._s?'PASS':'reject'}</span>${r.ovr?'<span class="pill ovr">PRA</span>':''}</td>
     <td class="failtxt">${r._f}</td></tr>`;}).join('');
   count.textContent=rows.length+' / '+DATA.length+' names';
