@@ -45,6 +45,14 @@ MIN_FFO_COVER = 1.05                      # FFO / dividends paid, lane R (REITs)
 # D&A). A REIT that covers its dividend out of FFO is durable; ROE >= 8% would reject almost
 # every quality REIT (Realty Income's ROE is ~3%).
 MAX_NET_LEVERAGE = 4.0                    # (total debt - cash) / EBITDA, lane A
+MAX_NET_LEVERAGE_UTIL = 6.5              # relaxed for regulated utilities: contracted/rate-
+# regulated cash flows safely support higher leverage (the asset-light 4x cap is a category
+# error for them, like ROE was for REITs). Applies to sector == Utilities.
+MIN_OCF_COVER_UTIL = 1.5                 # operating cash flow / dividends, utilities. FCF-after-
+# growth-capex is the wrong metric (utilities fund dividends from OCF and finance the rate-base
+# build separately), and ROIC is depressed by the vast regulated asset base, so utilities are
+# gated on OCF coverage + the relaxed leverage ceiling + the 10y uncut record, not ROIC/FCF.
+UTILITY_SECTORS = {"Utilities"}
 # Just-MAIN BDC inclusion (Lee): a BDC is a leveraged portfolio of private-company loans/equity,
 # scored on ROE (which IS meaningful for a BDC, unlike a REIT) but it needs a lower size floor
 # and a wider yield band than blue-chip operating cos. P/NAV (price/book) shown for the premium.
@@ -267,16 +275,17 @@ def growth_from_income(inc):
 
 
 def fcf_from_statement(cf):
-    fcf = divs_paid = None
+    fcf = divs_paid = ocf = None
     if cf is not None and not cf.empty:
+        ocf = _row(cf, "Operating Cash Flow")
         fcf = _row(cf, "Free Cash Flow")
-        if fcf is None:
-            ocf, capex = _row(cf, "Operating Cash Flow"), _row(cf, "Capital Expenditure")
-            if ocf is not None and capex is not None:
+        if fcf is None and ocf is not None:
+            capex = _row(cf, "Capital Expenditure")
+            if capex is not None:
                 fcf = ocf + capex
         dp = _row(cf, "Cash Dividends Paid")
         divs_paid = abs(dp) if dp is not None else None
-    return fcf, divs_paid
+    return fcf, divs_paid, ocf
 
 
 def ffo_from_statements(inc, cf):
@@ -315,7 +324,7 @@ def fetch_one(symbol):
     sector = info.get("sector")
     yearly = annual_dividends(t)
     years, uncut, cagr5 = div_record(yearly)
-    fcf = divs_paid_actual = roic = gross_prof = cash = ffo = None
+    fcf = divs_paid_actual = roic = gross_prof = cash = ffo = ocf = None
     norm_margin = cur_margin = rev_cagr = ni_cagr = None
     if sector == "Real Estate":                          # REITs: pull statements for FFO
         try:
@@ -325,7 +334,7 @@ def fetch_one(symbol):
     elif sector not in FINANCIAL_SECTORS:                # operating cos: pull statements
         try:
             inc = t.income_stmt
-            fcf, divs_paid_actual = fcf_from_statement(t.cashflow)
+            fcf, divs_paid_actual, ocf = fcf_from_statement(t.cashflow)
             roic, gross_prof, cash = roic_from_statements(inc, t.balance_sheet)
             norm_margin, cur_margin = margins_from_income(inc)
             rev_cagr, ni_cagr = growth_from_income(inc)
@@ -344,7 +353,7 @@ def fetch_one(symbol):
         "roic": roic, "gross_prof": gross_prof,
         "rec_norm_margin": norm_margin, "rec_cur_margin": cur_margin,
         "rev_cagr": rev_cagr, "ni_cagr": ni_cagr,
-        "fcf": fcf, "divs_paid_actual": divs_paid_actual, "cash": cash,
+        "fcf": fcf, "divs_paid_actual": divs_paid_actual, "cash": cash, "ocf": ocf,
         "ffo": ffo, "price_to_book": info.get("priceToBook"),
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
         "div_years": years, "uncut_10y": uncut, "gfc_ratio": gfc_ratio(yearly),
@@ -396,8 +405,8 @@ def fetch_universe(tickers, max_age_days):
 EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pct",
                  "yield_5y_avg", "payout_ratio", "roe", "roa", "op_margin", "gross_margin",
                  "roic", "gross_prof", "rec_norm_margin", "rec_cur_margin",
-                 "rev_cagr", "ni_cagr", "fcf", "divs_paid_actual", "cash", "ffo", "price_to_book",
-                 "total_debt",
+                 "rev_cagr", "ni_cagr", "fcf", "divs_paid_actual", "cash", "ocf", "ffo",
+                 "price_to_book", "total_debt",
                  "ebitda", "div_years", "uncut_10y", "gfc_ratio", "div_cagr5", "div_growth",
                  "div_streak",
                  "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
@@ -433,6 +442,8 @@ def apply_gates(df):
             opm = r.get("op_margin")
             if opm is not None and opm <= 0:                 # must be operationally profitable
                 return False
+            if r["sector"] in UTILITY_SECTORS:               # utilities: OCF cover, not ROIC
+                return True                                  # (durability enforced by ocf_cover gate)
             if roic is not None and not pd.isna(roic):
                 return roic >= MIN_ROIC_A or (roa is not None and roa >= MIN_ROA_A)
             if roa is not None and not pd.isna(roa):
@@ -453,12 +464,17 @@ def apply_gates(df):
         if not quality_ok(r): fails.append("quality")
         if r["lane"] == "A":
             divs_paid = r.get("divs_paid_actual") or (r["mcap_local"] or 0) * (y or 0) / 100
-            if not r["fcf"] or divs_paid <= 0 or r["fcf"] / divs_paid < MIN_FCF_COVER:
+            if r["sector"] in UTILITY_SECTORS:               # OCF cover (FCF-after-capex is wrong)
+                ocf = r.get("ocf")
+                if not ocf or divs_paid <= 0 or ocf / divs_paid < MIN_OCF_COVER_UTIL:
+                    fails.append("ocf_cover")
+            elif not r["fcf"] or divs_paid <= 0 or r["fcf"] / divs_paid < MIN_FCF_COVER:
                 fails.append("fcf_cover")
             ebitda = r.get("ebitda")
             if ebitda and ebitda > 0 and r.get("total_debt") is not None:
                 net_debt = r["total_debt"] - (r.get("cash") or 0)
-                if net_debt / ebitda > MAX_NET_LEVERAGE: fails.append("leverage")
+                lev_cap = MAX_NET_LEVERAGE_UTIL if r["sector"] in UTILITY_SECTORS else MAX_NET_LEVERAGE
+                if net_debt / ebitda > lev_cap: fails.append("leverage")
             # earnings-freefall gate: drop only genuine multi-year earnings deterioration (the
             # dividend's backing is collapsing). Profit not revenue; lenient on missing data.
             nc = r.get("ni_cagr")
@@ -528,7 +544,7 @@ def rank(survivors, mode="expret"):
     df["g_raw"] = df.apply(_sustainable_growth, axis=1)
 
     def quality_factor(r):                               # 0.5..1.0, scales positive growth
-        if r["lane"] == "R":                             # REIT ROE is meaningless; stay neutral
+        if r["lane"] == "R" or r["sector"] in UTILITY_SECTORS:   # ROE/ROIC meaningless; neutral
             return 0.7
         q = r.get("roic") if (r["lane"] == "A" and pd.notna(r.get("roic"))) else r.get("roe")
         q = _safe(q)
@@ -547,16 +563,18 @@ def rank(survivors, mode="expret"):
     # Cross-sectional reversion: cheapness relative to the OTHER candidates (not the whole
     # sector, against which every survivor looks cheap). FCF yield for operating cos, dividend
     # yield for financials; demeaned within lane so it is a modest, centred re-rating tilt.
-    df["_val"] = pd.to_numeric(
-        df.apply(lambda r: r.get("fcf_yield") if r["lane"] == "A" else r.get("yield_pct"), axis=1),
-        errors="coerce")
+    def _val_for(r):                                     # utilities have no FCF-yield cheapness
+        if r["sector"] in UTILITY_SECTORS:               # signal (capex-heavy), so no tilt
+            return None
+        return r.get("fcf_yield") if r["lane"] == "A" else r.get("yield_pct")
+    df["_val"] = pd.to_numeric(df.apply(_val_for, axis=1), errors="coerce")
 
     def _lane_z(s):
         sd = s.std(ddof=0)
         return (s - s.mean()) / sd if sd and sd > 0 else s * 0
 
     df["reversion"] = (df.groupby("lane", group_keys=False)["_val"].apply(_lane_z)
-                       .clip(-1.5, 1.5) * (REVERSION_PP / 1.5)).round(2)
+                       .clip(-1.5, 1.5) * (REVERSION_PP / 1.5)).round(2).fillna(0.0)
     df["exp_return"] = (df["net_yield"] + df["g_sust"] * 100 + df["reversion"]).round(2)
     df["score"] = df["exp_return"]
     df["growth"] = df["g_raw"]                            # display alias
