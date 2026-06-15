@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build universe.txt from Wikipedia constituent lists: FTSE 100 + S&P 500 + CAC 40 + DAX.
+"""Build universe.txt from Wikipedia constituent lists: FTSE 100 + S&P 500 + CAC 40 + DAX + IBEX 35.
 
 Usage: python3 build_universe.py   (writes universe.txt, one yfinance ticker per line)
 """
@@ -20,6 +20,7 @@ SOURCES = {
     "SP500": ("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ""),
     "CAC40": ("https://en.wikipedia.org/wiki/CAC_40", ".PA"),
     "DAX": ("https://en.wikipedia.org/wiki/DAX", ".DE"),
+    "IBEX35": ("https://en.wikipedia.org/wiki/IBEX_35", ".MC"),
 }
 EXTRAS = ["NESN.SW", "NOVN.SW", "ROG.SW", "ZURN.SW", "ABBN.SW",   # CH majors
           "0941.HK", "0883.HK", "2628.HK",                          # HK income names
