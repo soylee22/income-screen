@@ -22,6 +22,7 @@ SOURCES = {
     "DAX": ("https://en.wikipedia.org/wiki/DAX", ".DE"),
     "IBEX35": ("https://en.wikipedia.org/wiki/IBEX_35", ".MC"),
     "TSX60": ("https://en.wikipedia.org/wiki/S%26P/TSX_60", ".TO"),
+    "FTSE250": ("https://en.wikipedia.org/wiki/FTSE_250_Index", ".L"),  # UK mid-cap growers
 }
 EXTRAS = ["NESN.SW", "NOVN.SW", "ROG.SW", "ZURN.SW", "ABBN.SW",   # CH majors
           "0941.HK", "0883.HK", "2628.HK",                          # HK income names

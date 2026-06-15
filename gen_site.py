@@ -16,7 +16,8 @@ DOCS.mkdir(exist_ok=True)
 
 
 def country(tk):
-    for sfx, c in [(".L", "UK"), (".PA", "FR"), (".DE", "DE"), (".SW", "CH"), (".HK", "HK")]:
+    for sfx, c in [(".L", "UK"), (".PA", "FR"), (".DE", "DE"), (".SW", "CH"), (".HK", "HK"),
+                   (".MC", "ES"), (".MI", "IT"), (".AS", "NL"), (".TO", "CA")]:
         if tk.endswith(sfx):
             return c
     return "US"
@@ -96,6 +97,53 @@ for _, r in df.iterrows():
         "ovr": bool(ovr_map.get(t)),
     })
 
+# ---- dividend-growth screen (second tab) ----
+dg = S.apply_gates(pd.DataFrame(rows))            # for lane / quality_pass / mcap_usd
+dg = S.apply_growth_gates(dg)
+dg["country"] = dg["ticker"].map(country)
+g_ranked = S.rank_growth(dg)
+g_chowder = dict(zip(g_ranked["ticker"], g_ranked["chowder"]))
+g_score = dict(zip(g_ranked["ticker"], g_ranked["growth_score"]))
+g_nety = dict(zip(g_ranked["ticker"], g_ranked["net_yield"]))
+
+
+def _safe_pct(v, d=1):
+    try:
+        if v is None or pd.isna(v):
+            return None
+        return round(float(v) * 100, d)
+    except (TypeError, ValueError):
+        return None
+
+
+gtable = []
+for _, r in dg.iterrows():
+    t = r["ticker"]
+    wht = S.WHT_BY_COUNTRY.get(S.country(t), 0.20)
+    y = r.get("yield_pct")
+    nety = g_nety.get(t)
+    if nety is None and y is not None and not pd.isna(y):
+        nety = round(float(y) * (1 - wht), 2)
+    dgr5 = _safe_pct(r.get("div_cagr5"), 1)
+    chow = g_chowder.get(t)
+    if chow is None and nety is not None and dgr5 is not None:
+        chow = round(nety + dgr5, 1)
+    gsc = g_score.get(t)
+    if gsc is None and chow is not None:
+        strk = r.get("div_streak") or 0
+        gsc = round(chow * (0.7 + 0.3 * min(strk / S.GROWTH_STREAK_FULL, 1.0)), 1)
+    gtable.append({
+        "ticker": t, "name": (r.get("name") or "")[:32], "country": r["country"],
+        "sector": r.get("sector") or "",
+        "yield": num(r.get("yield_pct")), "nety": num(nety, 2),
+        "dgr5": dgr5, "streak": r.get("div_streak"),
+        "payout": _safe_pct(r.get("payout_ratio"), 0),
+        "chowder": num(chow, 1), "gscore": num(gsc, 1),
+        "knife": r.get("knife") or "",
+        "pass": r["gfails"] == "", "gfails": r["gfails"],
+    })
+n_gsurv = int((dg["gfails"] == "").sum())
+
 # sensitivity (relative to the 3% income baseline)
 base_top = list(ranked3["ticker"].head(10))
 sens = []
@@ -148,6 +196,8 @@ html = DOC.read_text().replace("{{SCRAPE}}", scrape_date)\
     .replace("{{NSURV}}", str(n_surv)).replace("{{NUNIV}}", str(n_univ))\
     .replace("{{COUNTRY_ROWS}}", country_rows).replace("{{SENS_ROWS}}", sens_rows)\
     .replace("{{COMP_TOP}}", comp_top).replace("{{NI_TOP}}", ni_top)\
-    .replace("{{DATA}}", json.dumps(table)).replace("{{GENERATED}}", date.today().isoformat())
+    .replace("{{DATA}}", json.dumps(table)).replace("{{GENERATED}}", date.today().isoformat())\
+    .replace("{{DATA_GROWTH}}", json.dumps(gtable))
 (DOCS / "index.html").write_text(html)
-print(f"wrote {DOCS/'index.html'} ({n_surv}/{n_univ} survivors, scraped {scrape_date})")
+print(f"wrote {DOCS/'index.html'} ({n_surv}/{n_univ} income survivors, "
+      f"{n_gsurv} growth survivors, scraped {scrape_date})")

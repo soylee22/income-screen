@@ -149,6 +149,12 @@
     background:var(--bg-2);border:1px solid var(--hair);color:var(--muted);border-radius:7px;cursor:pointer;transition:all .15s}
   .modebtn:hover,.floorbtn:hover{color:var(--ink)}
   .modebtn.on,.floorbtn.on{background:var(--accent-dim);border-color:var(--accent);color:var(--ink)}
+  .tabbtn{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.05em;padding:10px 22px;
+    background:var(--bg-2);border:1px solid var(--hair);color:var(--muted);border-radius:8px;cursor:pointer;transition:all .15s}
+  .tabbtn:hover{color:var(--ink)}
+  .tabbtn.on{background:var(--accent-dim);border-color:var(--accent);color:var(--ink)}
+  .knifeflag{color:var(--bad);font-size:10px;font-family:var(--mono);font-weight:600;letter-spacing:.04em}
+  .knifeflag.mild{color:var(--flag)}
   .barsep{width:1px;height:20px;background:var(--hair-2);margin:0 4px}
   .toppick{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:6px}
   .toppick b{color:var(--silver)}
@@ -346,6 +352,12 @@
 
   <section id="data">
     <div class="sechead"><span class="num">09</span><h2>Data explorer</h2></div>
+    <div class="modebar" style="margin-bottom:14px">
+      <button class="tabbtn on" data-tab="income">Income screen</button>
+      <button class="tabbtn" data-tab="growth">Dividend growth</button>
+    </div>
+
+    <div id="incomePane">
     <p>All {{NUNIV}} names, survivors first. Two ranking lenses: <strong>Expected return</strong> (Gordon/DDM estimate: net yield + quality-haircut sustainable growth + cross-sectional reversion, in real percentage points) and <strong>Net income</strong> (highest net yield first, growth-guarded). Switch below; the gates are identical, only the ordering of survivors changes. Two operating-company context columns: <strong>EpsG%</strong> is the multi-year net-income growth (the earnings-freefall gate cuts below minus 10%, shown red), and <strong>Mgn</strong> is current operating margin divided by its own normalised level (below ~0.85 = depressed, above ~1.15 = running hot). EpsG drives a gate; Mgn is informational only.</p>
     <div class="modebar">
       <button class="modebtn on" data-mode="comp">Expected return</button>
@@ -379,6 +391,38 @@
       </tr></thead>
       <tbody id="tb"></tbody>
     </table></div>
+    </div><!-- /incomePane -->
+
+    <div id="growthPane" hidden>
+    <p>A different strategy from the income screen: <strong>dividend growers</strong>, not high-yield cash cows. The evidence (see methodology) says the dividend-grower outperformance is a <strong>quality / low-payout / growth</strong> effect, so this screen lowers the size floor to <strong>$2bn</strong> (adds the mid-cap growers), drops the yield requirement to <strong>1-6%</strong>, and adds two gates the income screen lacks: a <strong>payout cap (85%)</strong> that kills the streaks-on-borrowed-time (Croda ~250%, Telus ~277% payout), and minimums on the <strong>raise streak (7y)</strong> and <strong>5-year dividend-growth CAGR (3%)</strong>. Ranked by the <strong>Chowder number</strong> (net yield + 5y dividend-growth CAGR, the standard dividend-growth metric and a Gordon total-return proxy), weighted by streak length so a long proven grower outranks a short one. <strong>GScore</strong> is that streak-weighted Chowder. <strong>Knife</strong> flags a name below its 200-day or down sharply over 12 months (shown, not excluded: a quality grower on sale is the opportunity, a collapsing one is the trap).</p>
+    <div class="controls">
+      <div class="field">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="gq" placeholder="search ticker / name / sector / country / reason">
+      </div>
+      <select id="gfilt">
+        <option value="all">All names</option>
+        <option value="PASS">Survivors only</option>
+        <option value="reject">Rejects only</option>
+      </select>
+      <span class="count" id="gcount"></span>
+    </div>
+    <div class="tablewrap"><table id="gt">
+      <thead><tr>
+        <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
+        <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
+        <th data-k="yield">Yld%</th><th data-k="nety">Net%</th>
+        <th data-k="dgr5" title="5-year dividend-growth CAGR">DGR5y%</th>
+        <th data-k="streak" title="Consecutive annual dividend increases">Strk</th>
+        <th data-k="payout" title="Dividend payout ratio (cap 85% to keep the runway)">Pay%</th>
+        <th data-k="chowder" title="Net yield + 5y dividend-growth CAGR">Chowder</th>
+        <th data-k="gscore" title="Chowder weighted by streak length">GScore</th>
+        <th data-k="knife" title="Falling-knife / value-trap flag">Knife</th>
+        <th data-k="status">Status</th><th data-k="gfails">Fails</th>
+      </tr></thead>
+      <tbody id="gtb"></tbody>
+    </table></div>
+    </div><!-- /growthPane -->
   </section>
 
   <footer>
@@ -390,6 +434,7 @@
 
 <script>
 const DATA = {{DATA}};
+const DATA_GROWTH = {{DATA_GROWTH}};
 let mode="comp", floor="income", sortK="rank", sortAsc=true;
 const tb=document.getElementById('tb'), q=document.getElementById('q'),
       filt=document.getElementById('filt'), count=document.getElementById('count'),
@@ -447,6 +492,58 @@ document.querySelectorAll('.floorbtn').forEach(b=>b.onclick=()=>{
   b.classList.add('on'); floor=b.dataset.floor; sortK="rank"; render();
 });
 q.oninput=render; filt.onchange=render; render();
+
+// ---- dividend-growth tab ----
+let gSortK="rank", gSortAsc=true;
+const gtb=document.getElementById('gtb'), gq=document.getElementById('gq'),
+      gfilt=document.getElementById('gfilt'), gcount=document.getElementById('gcount');
+function gknife(v){
+  if(v==="KNIFE")return '<span class="knifeflag">KNIFE</span>';
+  if(v==="below200d")return '<span class="knifeflag mild">&lt;200d</span>';
+  return '<span class="dim">.</span>';
+}
+function renderG(){
+  const term=gq.value.toLowerCase(), f=gfilt.value;
+  let rows=DATA_GROWTH.map(r=>({...r})).filter(r=>{
+    if(f==="PASS"&&!r.pass)return false;
+    if(f==="reject"&&r.pass)return false;
+    if(!term)return true;
+    return (r.ticker+' '+r.name+' '+r.sector+' '+r.country+' '+r.gfails).toLowerCase().includes(term);
+  });
+  if(gSortK==="rank"){
+    rows.sort((a,b)=> (a.pass!==b.pass)?(a.pass?-1:1) : ((b.gscore==null?-1e9:b.gscore)-(a.gscore==null?-1e9:a.gscore)));
+  }else{
+    rows.sort((a,b)=>{let x=a[gSortK],y=b[gSortK];
+      if(x===""||x==null)x=gSortAsc?1e9:-1e9; if(y===""||y==null)y=gSortAsc?1e9:-1e9;
+      if(typeof x==="string")return gSortAsc?x.localeCompare(y):y.localeCompare(x);
+      return gSortAsc?x-y:y-x;});
+  }
+  let rk=0;
+  gtb.innerHTML=rows.map(r=>{const rank=r.pass?(++rk):"";return `<tr>
+    <td class="dim">${rank||'<span class="dim">.</span>'}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
+    <td>${r.country}</td><td>${r.sector}</td>
+    <td>${cell(r.yield)}</td><td><b>${cell(r.nety)}</b></td>
+    <td class="cheapy">${r.dgr5!=null?r.dgr5+'%':cell(null)}</td>
+    <td>${cell(r.streak)}</td>
+    <td>${r.payout!=null&&r.payout>85?'<span class="failtxt">'+r.payout+'%</span>':(r.payout!=null?r.payout+'%':cell(null))}</td>
+    <td>${cell(r.chowder)}</td><td><b class="cheapy">${cell(r.gscore)}</b></td>
+    <td>${gknife(r.knife)}</td>
+    <td><span class="pill ${r.pass?'pass':'rej'}">${r.pass?'PASS':'reject'}</span></td>
+    <td class="failtxt">${r.gfails}</td></tr>`;}).join('');
+  gcount.textContent=rows.length+' / '+DATA_GROWTH.length+' names';
+}
+document.querySelectorAll('#gt th[data-k]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.k; if(k==="rank")gSortK="rank"; else if(gSortK===k)gSortAsc=!gSortAsc; else{gSortK=k;gSortAsc=true;} renderG();
+});
+gq.oninput=renderG; gfilt.onchange=renderG;
+document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  const t=b.dataset.tab;
+  document.getElementById('incomePane').hidden=(t!=="income");
+  document.getElementById('growthPane').hidden=(t!=="growth");
+  if(t==="growth")renderG();
+});
 
 // scrollspy
 const links=[...document.querySelectorAll('nav.toc a')];

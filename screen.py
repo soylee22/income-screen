@@ -61,6 +61,18 @@ BDC_MIN_MCAP = 2e9
 BDC_YIELD_MAX = 12.0
 MOM_12M_MIN = -0.10                       # falling-knife: drop names down >10% over 12m
 MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day average
+
+# ----- Dividend-GROWTH screen (the second tab): a different strategy from income. Targets
+# low-payout, fast-growing compounders (the quality/dividend-growth premium), not high-yield
+# cash cows. See wiki dividend-growth-premium-evidence. Yield is NOT the point; the runway is.
+GROWTH_MIN_MCAP = 2e9        # lower floor than income ($15bn) so mid-cap growers appear
+GROWTH_YIELD_MIN = 1.0       # must pay a dividend, but a low yield is fine (it's a grower)
+GROWTH_YIELD_MAX = 6.0       # above this for a "grower" is a yield-trap red flag
+GROWTH_PAYOUT_CAP = 0.85     # the runway gate: low payout = room to keep raising. Kills the
+                             # streaks-on-borrowed-time (Croda ~250%, Telus ~277% payout)
+GROWTH_MIN_STREAK = 7        # minimum consecutive annual raises (the proven-grower bar)
+GROWTH_MIN_DGR = 0.03        # minimum 5-year dividend-growth CAGR (must actually be growing)
+GROWTH_STREAK_FULL = 15      # raise streak (yrs) at which length credibility maxes out
 MIN_NI_CAGR = -0.10                       # earnings-freefall gate (lane A): drop only names whose
                                           # net income has fallen >10%/yr over the cycle. Profit not
                                           # revenue, so tobacco/staples cash-machines (flat revenue,
@@ -486,6 +498,7 @@ def apply_gates(df):
         return ",".join(fails)
 
     df["fails"] = df.apply(gate, axis=1)
+    df["quality_pass"] = df.apply(quality_ok, axis=1)     # exposed for the growth screen
     df["overridden"] = df.apply(
         lambda r: r["ticker"] in PRA_OVERRIDE and "cut_in_10y" in r["fails"], axis=1)
     df["fails"] = df.apply(
@@ -584,6 +597,57 @@ def rank(survivors, mode="expret"):
     else:
         df = df.sort_values("exp_return", ascending=False)
     return df
+
+
+# --------------------------- dividend-GROWTH screen ---------------------------
+def knife_flag(r):
+    """Falling-knife / value-trap badge (shown, not auto-excluded, in the growth screen):
+    a quality grower temporarily cheap is an opportunity, a collapsing one is a trap."""
+    px, sma, mom = _safe(r.get("px")), _safe(r.get("sma200")), _safe(r.get("mom_12m"))
+    below = (px / sma - 1) if (px and sma and sma > 0) else None
+    if (below is not None and below < -0.20) or (mom is not None and mom < -0.20):
+        return "KNIFE"                                    # severe: deep below 200d / -20% 12m
+    if (below is not None and below < -0.02) or (mom is not None and mom < -0.10):
+        return "below200d"                                # mild: cheap, possible value entry
+    return ""
+
+
+def apply_growth_gates(df):
+    """Gate for the dividend-GROWTH screen. Assumes apply_gates has already run (lane,
+    mcap_usd, quality_pass present). Targets low-payout fast growers, not income."""
+    def ggate(r):
+        f = []
+        if _safe(r.get("mcap_usd"), 0) < GROWTH_MIN_MCAP: f.append("mcap")
+        y = _safe(r.get("yield_pct"))
+        if y is None or not (GROWTH_YIELD_MIN <= y <= GROWTH_YIELD_MAX): f.append("yield_band")
+        if _safe(r.get("div_years"), 0) < MIN_DIV_YEARS: f.append("record<10y")
+        if not r.get("uncut_10y"): f.append("cut_in_10y")
+        if _safe(r.get("div_streak"), 0) < GROWTH_MIN_STREAK: f.append(f"streak<{GROWTH_MIN_STREAK}y")
+        dgr = _safe(r.get("div_cagr5"), _safe(r.get("div_growth")))
+        if dgr is None or dgr < GROWTH_MIN_DGR: f.append("low_growth")
+        po = _safe(r.get("payout_ratio"))
+        if po is None or po > GROWTH_PAYOUT_CAP or po <= 0: f.append("payout")
+        if not r.get("quality_pass"): f.append("quality")
+        return ",".join(f)
+    df = df.copy()
+    df["gfails"] = df.apply(ggate, axis=1)
+    df["knife"] = df.apply(knife_flag, axis=1)
+    return df
+
+
+def rank_growth(df):
+    """Rank growth survivors by the Chowder number (net yield + 5y dividend-growth CAGR, the
+    standard dividend-growth metric and a Gordon total-return proxy), weighted by raise-streak
+    length so a long proven grower outranks a short one with the same Chowder."""
+    s = df[df["gfails"] == ""].copy()
+    s["wht"] = s["ticker"].map(lambda t: WHT_BY_COUNTRY.get(country(t), 0.20))
+    s["net_yield"] = (s["yield_pct"] * (1 - s["wht"])).round(2)
+    s["dgr5"] = (pd.to_numeric(s["div_cagr5"], errors="coerce") * 100).round(1)
+    s["chowder"] = (s["net_yield"] + s["dgr5"]).round(2)
+    s["streak_cred"] = s["div_streak"].map(
+        lambda v: 0.7 + 0.3 * min(_safe(v, 0) / GROWTH_STREAK_FULL, 1.0))
+    s["growth_score"] = (s["chowder"] * s["streak_cred"]).round(2)
+    return s.sort_values("growth_score", ascending=False)
 
 
 # -------------------------------- CLI --------------------------------
