@@ -151,21 +151,30 @@ def fx_rates(currencies):
     return rates
 
 
-def trim_specials(divs):
-    """Drop one-off specials: any payment > 2x the trailing-8 median."""
-    if len(divs) < 5:
-        return divs
-    ref = divs.shift(1).rolling(8, min_periods=4).median().fillna(divs.median())
-    return divs[divs <= 2.0 * ref]
+def despike(yearly):
+    """Flatten a TRANSIENT one-off special-dividend spike (a single year >1.5x BOTH its
+    neighbours, i.e. it pops then reverts) to the neighbour level, so a special does not read
+    as a raise-then-cut in the record/streak. Operates on the ANNUAL series, not per-payment:
+    a payment-level trim wrongly eats the large leg of an unequal semi-annual dividend (a big
+    final + small interim, e.g. Cranswick), shredding a clean record. Sustained variability
+    (miners) and genuine step-ups are left untouched."""
+    if yearly is None or len(yearly) < 3:
+        return yearly
+    vals = yearly.values.astype(float).copy()
+    for i in range(1, len(vals) - 1):
+        lo, hi = vals[i - 1], vals[i + 1]
+        if lo > 0 and hi > 0 and vals[i] > 1.5 * lo and vals[i] > 1.5 * hi:
+            vals[i] = max(lo, hi)
+    return pd.Series(vals, index=yearly.index)
 
 
 def annual_dividends(t):
     divs = t.dividends
     if divs is None or divs.empty:
         return pd.Series(dtype=float)
-    divs = trim_specials(divs)
-    yearly = divs.groupby(divs.index.year).sum()
-    return yearly[yearly.index < date.today().year]
+    yearly = divs.groupby(divs.index.year).sum()          # sum ALL regular payments per year
+    yearly = yearly[yearly.index < date.today().year]
+    return despike(yearly)                                 # then flatten one-off special spikes
 
 
 def div_record(yearly):
