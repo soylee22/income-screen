@@ -74,7 +74,10 @@ GROWTH_PAYOUT_CAP = 0.85      # the runway gate: low payout = room to keep raisi
 GROWTH_MIN_STREAK = 15        # the aristocrat bar. With the general COVID bridge DROPPED here,
                               # 2020 discretionary cutters (TJX/Gildan/Darden) reset to ~4y and fail
 GROWTH_MIN_DGR = 0.03         # minimum dividend-growth CAGR over the long window
-GROWTH_DGR_WINDOW = 15        # measure growth over ~15y, not 5 (robust, captures sustained growth)
+GROWTH_DGR_WINDOW = 20        # measure growth over ~20y (reaches pre-GFC, so a crisis-cutter's
+                              # CAGR is taken from a NORMAL base not the 2009-10 trough, which
+                              # exposes serial cutters like Regions/US Bancorp instead of flattering
+                              # them). Uses min(20, available years), so short-history names are kept.
 GROWTH_DGR_CAP = 0.10         # cap growth in the SCORE: a very high rate is usually rebound/
                               # payout-catch-up, not durable. Length and quality lead, rate follows.
 GROWTH_STREAK_SCORE_CAP = 25  # cap streak's score contribution: 25y is aristocrat enough, and
