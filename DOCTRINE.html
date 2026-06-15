@@ -153,6 +153,15 @@
     background:var(--bg-2);border:1px solid var(--hair);color:var(--muted);border-radius:8px;cursor:pointer;transition:all .15s}
   .tabbtn:hover{color:var(--ink)}
   .tabbtn.on{background:var(--accent-dim);border-color:var(--accent);color:var(--ink)}
+  /* gold flagship marker for the core income screen */
+  .tabbtn.flagship{border-color:rgba(212,175,55,.45);color:#D9BE6E}
+  .tabbtn.flagship:hover{color:#F0DA9A}
+  .tabbtn.flagship.on{background:rgba(212,175,55,.16);border-color:#D4AF37;color:#F3E2A6;
+    box-shadow:0 0 0 1px rgba(212,175,55,.25),0 2px 14px rgba(212,175,55,.12)}
+  .tabbtn .star{color:#D4AF37}
+  .flagtag{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:#D4AF37;border:1px solid rgba(212,175,55,.4);border-radius:4px;padding:2px 7px;margin-left:10px;
+    vertical-align:middle}
   .knifeflag{color:var(--bad);font-size:10px;font-family:var(--mono);font-weight:600;letter-spacing:.04em}
   .knifeflag.mild{color:var(--flag)}
   .barsep{width:1px;height:20px;background:var(--hair-2);margin:0 4px}
@@ -353,7 +362,7 @@
   <section id="data">
     <div class="sechead"><span class="num">09</span><h2>Data explorer</h2></div>
     <div class="modebar" style="margin-bottom:14px">
-      <button class="tabbtn on" data-tab="income">Income screen</button>
+      <button class="tabbtn flagship on" data-tab="income"><span class="star">&#9733;</span> Income screen <span class="flagtag">core</span></button>
       <button class="tabbtn" data-tab="growth">Dividend growth</button>
     </div>
 
