@@ -83,7 +83,8 @@ REVERSION_PP = 0.9           # max cross-sectional cheapness tilt (pp), kept mod
 # Dividend withholding tax for a UK ISA investor (passive, no reclaim). UK/HK/IE 0;
 # US 15% (W-8BEN; 0% in a SIPP); EU ~26%; Switzerland 35%; Japan 10% (treaty).
 WHT_BY_COUNTRY = {"UK": 0.0, "HK": 0.0, "IE": 0.0, "US": 0.15, "NL": 0.15, "JP": 0.10,
-                  "ES": 0.19, "DE": 0.26, "FR": 0.26, "IT": 0.26, "BE": 0.30, "CH": 0.35}
+                  "CA": 0.15, "ES": 0.19, "DE": 0.26, "FR": 0.26, "IT": 0.26, "BE": 0.30,
+                  "CH": 0.35}
 TAX_TILT = 0.7        # score penalty per unit of WHT (prefer tax-efficient domiciles)
 
 # Domicile overrides for ADRs / names whose tax home is not their listing suffix.
@@ -112,7 +113,7 @@ def country(tk):
     if tk in COUNTRY_OVERRIDE:
         return COUNTRY_OVERRIDE[tk]
     for sfx, c in [(".L", "UK"), (".PA", "FR"), (".DE", "DE"), (".SW", "CH"), (".HK", "HK"),
-                   (".MC", "ES"), (".MI", "IT"), (".AS", "NL"), (".T", "JP")]:
+                   (".MC", "ES"), (".MI", "IT"), (".AS", "NL"), (".TO", "CA"), (".T", "JP")]:
         if tk.endswith(sfx):
             return c
     return "US"
