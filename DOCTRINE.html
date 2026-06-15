@@ -385,7 +385,10 @@
         <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
         <th data-k="yield">Yld%</th><th data-k="nety">Net%</th><th data-k="wht">WHT</th>
-        <th data-k="roic">ROIC</th><th data-k="gsust">DivG%</th><th data-k="epsg">EpsG%</th><th data-k="mgap">Mgn</th><th data-k="exp">ExpRet%</th>
+        <th data-k="roic">ROIC</th><th data-k="gsust">DivG%</th>
+        <th data-k="dgr" title="Dividend-growth CAGR over ~15 years (raw)">DGR%</th>
+        <th data-k="chowder" title="Indicated net yield + 15y dividend-growth CAGR (the yield+growth total)">Chwd</th>
+        <th data-k="epsg">EpsG%</th><th data-k="mgap">Mgn</th><th data-k="exp">ExpRet%</th>
         <th data-k="mom">12m%</th><th data-k="years">Yrs</th><th data-k="streak" title="Consecutive annual dividend increases (raise streak); weights growth credibility in the rank">Strk</th>
         <th data-k="status">Status</th><th data-k="fails">Fails</th>
       </tr></thead>
@@ -472,6 +475,8 @@ function render(){
     <td class="dim">${r.wht?r.wht+'%':'0%'}</td>
     <td>${r.roic!==null?r.roic+'%':cell(r.qual!==null?r.qual+'%':null)}</td>
     <td>${r.gsust!==null&&r.gsust<0?'<span class="failtxt">'+r.gsust+'%</span>':(r.gsust!==null?r.gsust+'%':cell(null))}</td>
+    <td class="cheapy">${r.dgr!=null?r.dgr+'%':cell(null)}</td>
+    <td><b>${cell(r.chowder)}</b></td>
     <td>${r.epsg!==null&&r.epsg<-10?'<span class="failtxt">'+r.epsg+'%</span>':(r.epsg!==null?r.epsg+'%':cell(null))}</td>
     <td>${r.mgap!==null&&r.mgap<0.85?'<span class="failtxt">'+r.mgap+'</span>':(r.mgap!==null&&r.mgap>1.15?'<span class="cheapy">'+r.mgap+'</span>':cell(r.mgap))}</td>
     <td><b class="cheapy">${cell(r.exp!==null?r.exp+'%':null)}</b></td>

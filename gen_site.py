@@ -70,14 +70,19 @@ for _, r in df.iterrows():
     if gval is None or pd.isna(gval):
         gval = r.get("div_growth")
     gval = gval if (gval is not None and not pd.isna(gval)) else None
+    _nety = ny_map.get(t)
+    if _nety is None and r.get("yield_pct") is not None:
+        _nety = r.get("yield_pct") * (1 - S.WHT_BY_COUNTRY.get(S.country(t), 0.20))
+    _dgr = S.dgr_window(S._annual_from_store(r.get("div_annual")))   # ~15y dividend-growth CAGR
+    _dgr_pct = round(_dgr * 100, 1) if _dgr is not None else None
+    _chow = round(_nety + _dgr_pct, 1) if (_nety is not None and _dgr_pct is not None) else None
     table.append({
         "ticker": t, "name": (r.get("name") or "")[:32], "country": r["country"],
         "sector": r.get("sector") or "", "lane": r["lane"],
         "yield": num(r.get("yield_pct")),
         "wht": int(S.WHT_BY_COUNTRY.get(S.country(t), 0.20) * 100),
-        "nety": num(ny_map.get(t), 2) if ny_map.get(t) is not None else (
-            num(r.get("yield_pct") * (1 - S.WHT_BY_COUNTRY.get(S.country(t), 0.20)), 2)
-            if r.get("yield_pct") is not None else None),
+        "nety": num(_nety, 2),
+        "dgr": _dgr_pct, "chowder": _chow,
         "roic": num(roic * 100, 0) if roic is not None else None,
         "qual": num(qual * 100, 0) if qual is not None else None,
         "gsust": num(gs_map.get(t) * 100, 1) if (gs_map.get(t) is not None and not pd.isna(gs_map.get(t)))
