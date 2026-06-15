@@ -394,7 +394,11 @@
     </div><!-- /incomePane -->
 
     <div id="growthPane" hidden>
-    <p>A different strategy from the income screen: <strong>dividend growers</strong>, not high-yield cash cows. The evidence (see methodology) says the dividend-grower outperformance is a <strong>quality / low-payout / growth</strong> effect, so this screen lowers the size floor to <strong>$2bn</strong> (adds the mid-cap growers), drops the yield requirement to <strong>1-6%</strong>, and adds two gates the income screen lacks: a <strong>payout cap (85%)</strong> that kills the streaks-on-borrowed-time (Croda ~250%, Telus ~277% payout), and minimums on the <strong>raise streak (7y)</strong> and <strong>5-year dividend-growth CAGR (3%)</strong>. Ranked by the <strong>Chowder number</strong> (net yield + 5y dividend-growth CAGR, the standard dividend-growth metric and a Gordon total-return proxy), weighted by streak length so a long proven grower outranks a short one. <strong>GScore</strong> is that streak-weighted Chowder. <strong>Knife</strong> flags a name below its 200-day or down sharply over 12 months (shown, not excluded: a quality grower on sale is the opportunity, a collapsing one is the trap).</p>
+    <p>The <strong>blue-chip dividend-growth aristocrats</strong>: long, unbroken records of <em>raising</em> the dividend, the Coca-Cola archetype, not high-yield cash cows and not fast-growth rebounders. This screen ranks on <strong>length and quality over rate</strong>: a 25-year steady compounder beats a 7-year fast one. Gates: <strong>min 15-year raise streak</strong>, yield 1-6%, <strong>payout cap 85%</strong> (kills Croda ~250% / Telus ~277%), min 3% dividend-growth CAGR over a <strong>~15-year window</strong>, plus quality. Crucially the <strong>general COVID bridge is dropped here</strong>: a company that chose to cut in 2020 (TJX, Gildan, Darden) has its streak reset and fails the 15-year bar, while <strong>PRA-forced</strong> UK financials (the regulator ordered the 2020 suspension) keep the exemption. <strong>GScore</strong> = raise-streak (the dominant, length term) + a quality-adjusted Chowder bonus (net yield + sustainable growth, with growth <strong>capped at 10%</strong> so a rebound rate can't win). <strong>Knife</strong> flags a name below its 200-day or down sharply (shown, not excluded). Use the <strong>size toggle</strong>: blue-chip (&ge;$15bn, the default) or broad (&ge;$2bn, includes mid-cap growers like Cranswick).</p>
+    <div class="modebar" style="margin-bottom:10px">
+      <button class="floorbtn on" data-gsize="blue">Blue-chip $15bn+</button>
+      <button class="floorbtn" data-gsize="broad">Broad $2bn+</button>
+    </div>
     <div class="controls">
       <div class="field">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -411,12 +415,13 @@
       <thead><tr>
         <th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
         <th data-k="country">Ctry</th><th data-k="sector">Sector</th>
+        <th data-k="mcap" title="Market cap, $bn">$bn</th>
         <th data-k="yield">Yld%</th><th data-k="nety">Net%</th>
-        <th data-k="dgr5" title="5-year dividend-growth CAGR">DGR5y%</th>
-        <th data-k="streak" title="Consecutive annual dividend increases">Strk</th>
+        <th data-k="dgr" title="Dividend-growth CAGR over ~15 years">DGR%</th>
+        <th data-k="streak" title="Consecutive annual dividend increases (strict; no general COVID bridge)">Strk</th>
         <th data-k="payout" title="Dividend payout ratio (cap 85% to keep the runway)">Pay%</th>
-        <th data-k="chowder" title="Net yield + 5y dividend-growth CAGR">Chowder</th>
-        <th data-k="gscore" title="Chowder weighted by streak length">GScore</th>
+        <th data-k="chowder" title="Net yield + capped (10%) dividend growth">Chwd</th>
+        <th data-k="gscore" title="Streak length + quality-adjusted Chowder bonus (length over rate)">GScore</th>
         <th data-k="knife" title="Falling-knife / value-trap flag">Knife</th>
         <th data-k="status">Status</th><th data-k="gfails">Fails</th>
       </tr></thead>
@@ -494,7 +499,7 @@ document.querySelectorAll('.floorbtn').forEach(b=>b.onclick=()=>{
 q.oninput=render; filt.onchange=render; render();
 
 // ---- dividend-growth tab ----
-let gSortK="rank", gSortAsc=true;
+let gSortK="rank", gSortAsc=true, gSize="blue";
 const gtb=document.getElementById('gtb'), gq=document.getElementById('gq'),
       gfilt=document.getElementById('gfilt'), gcount=document.getElementById('gcount');
 function gknife(v){
@@ -505,6 +510,7 @@ function gknife(v){
 function renderG(){
   const term=gq.value.toLowerCase(), f=gfilt.value;
   let rows=DATA_GROWTH.map(r=>({...r})).filter(r=>{
+    if(gSize==="blue" && (r.mcap==null||r.mcap<15))return false;
     if(f==="PASS"&&!r.pass)return false;
     if(f==="reject"&&r.pass)return false;
     if(!term)return true;
@@ -522,8 +528,9 @@ function renderG(){
   gtb.innerHTML=rows.map(r=>{const rank=r.pass?(++rk):"";return `<tr>
     <td class="dim">${rank||'<span class="dim">.</span>'}</td><td><b>${r.ticker}</b></td><td>${r.name}</td>
     <td>${r.country}</td><td>${r.sector}</td>
+    <td class="dim">${cell(r.mcap)}</td>
     <td>${cell(r.yield)}</td><td><b>${cell(r.nety)}</b></td>
-    <td class="cheapy">${r.dgr5!=null?r.dgr5+'%':cell(null)}</td>
+    <td class="cheapy">${r.dgr!=null?r.dgr+'%':cell(null)}</td>
     <td>${cell(r.streak)}</td>
     <td>${r.payout!=null&&r.payout>85?'<span class="failtxt">'+r.payout+'%</span>':(r.payout!=null?r.payout+'%':cell(null))}</td>
     <td>${cell(r.chowder)}</td><td><b class="cheapy">${cell(r.gscore)}</b></td>
@@ -534,6 +541,10 @@ function renderG(){
 }
 document.querySelectorAll('#gt th[data-k]').forEach(th=>th.onclick=()=>{
   const k=th.dataset.k; if(k==="rank")gSortK="rank"; else if(gSortK===k)gSortAsc=!gSortAsc; else{gSortK=k;gSortAsc=true;} renderG();
+});
+document.querySelectorAll('.floorbtn[data-gsize]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.floorbtn[data-gsize]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); gSize=b.dataset.gsize; gSortK="rank"; renderG();
 });
 gq.oninput=renderG; gfilt.onchange=renderG;
 document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{

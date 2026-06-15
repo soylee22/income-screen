@@ -65,14 +65,21 @@ MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day 
 # ----- Dividend-GROWTH screen (the second tab): a different strategy from income. Targets
 # low-payout, fast-growing compounders (the quality/dividend-growth premium), not high-yield
 # cash cows. See wiki dividend-growth-premium-evidence. Yield is NOT the point; the runway is.
-GROWTH_MIN_MCAP = 2e9        # lower floor than income ($15bn) so mid-cap growers appear
-GROWTH_YIELD_MIN = 1.0       # must pay a dividend, but a low yield is fine (it's a grower)
-GROWTH_YIELD_MAX = 6.0       # above this for a "grower" is a yield-trap red flag
-GROWTH_PAYOUT_CAP = 0.85     # the runway gate: low payout = room to keep raising. Kills the
-                             # streaks-on-borrowed-time (Croda ~250%, Telus ~277% payout)
-GROWTH_MIN_STREAK = 7        # minimum consecutive annual raises (the proven-grower bar)
-GROWTH_MIN_DGR = 0.03        # minimum 5-year dividend-growth CAGR (must actually be growing)
-GROWTH_STREAK_FULL = 15      # raise streak (yrs) at which length credibility maxes out
+GROWTH_MIN_MCAP_BROAD = 2e9   # "broad" floor: mid-cap growers (Cranswick) appear
+GROWTH_MIN_MCAP_BLUE = 15e9   # "blue-chip" floor (default view): the Coca-Cola archetype
+GROWTH_YIELD_MIN = 1.0        # must pay a dividend, but a low yield is fine (it's a grower)
+GROWTH_YIELD_MAX = 6.0        # above this for a "grower" is a yield-trap red flag
+GROWTH_PAYOUT_CAP = 0.85      # the runway gate: low payout = room to keep raising. Kills the
+                              # streaks-on-borrowed-time (Croda ~250%, Telus ~277% payout)
+GROWTH_MIN_STREAK = 15        # the aristocrat bar. With the general COVID bridge DROPPED here,
+                              # 2020 discretionary cutters (TJX/Gildan/Darden) reset to ~4y and fail
+GROWTH_MIN_DGR = 0.03         # minimum dividend-growth CAGR over the long window
+GROWTH_DGR_WINDOW = 15        # measure growth over ~15y, not 5 (robust, captures sustained growth)
+GROWTH_DGR_CAP = 0.10         # cap growth in the SCORE: a very high rate is usually rebound/
+                              # payout-catch-up, not durable. Length and quality lead, rate follows.
+GROWTH_STREAK_SCORE_CAP = 25  # cap streak's score contribution: 25y is aristocrat enough, and
+                              # beyond it the rank would just track yfinance history depth (JNJ
+                              # has data to 1962, KO only ~25y), not real quality. Tier then rank.
 MIN_NI_CAGR = -0.10                       # earnings-freefall gate (lane A): drop only names whose
                                           # net income has fallen >10%/yr over the cycle. Profit not
                                           # revenue, so tobacco/staples cash-machines (flat revenue,
@@ -621,42 +628,119 @@ def knife_flag(r):
     return ""
 
 
+def _annual_from_store(v):
+    """Rebuild the despiked annual dividend Series from the stored div_annual dict."""
+    if not v or not isinstance(v, dict):
+        return pd.Series(dtype=float)
+    try:
+        return pd.Series({int(k): float(x) for k, x in v.items()}).sort_index()
+    except (TypeError, ValueError):
+        return pd.Series(dtype=float)
+
+
+def strict_uncut10(yearly, pra=False):
+    """No >MAX_CUT annual cut in the last 10y. Unlike div_record there is NO general COVID
+    bridge here: a discretionary 2020 cut counts. Only PRA-forced names (the Bank of England
+    ordered UK banks/insurers to suspend in 2020) get the 2020/21 exemption."""
+    if yearly is None or len(yearly) < 2:
+        return False
+    chg = yearly.tail(11).pct_change().dropna()
+    cuts = set(chg[chg <= -MAX_CUT].index)
+    if pra and 2019 in yearly.index and yearly.loc[2019] > 0 and yearly.iloc[-1] >= 0.9 * yearly.loc[2019]:
+        cuts -= {2020, 2021}
+    return not cuts
+
+
+def strict_raise_streak(yearly, pra=False):
+    """Consecutive annual raises ending at the latest year, with NO general COVID bridge: a
+    2020 discretionary cut resets the streak (so 2020 cutters fail the aristocrat bar). Only
+    PRA-forced names bridge the regulator-ordered 2020/21 suspension."""
+    if yearly is None or yearly.empty:
+        return 0
+    y = yearly[yearly > 0]
+    if len(y) < 2:
+        return 0
+    idx, vals = list(y.index), list(y.values)
+    recovered = (2019 in y.index and y.loc[2019] > 0 and vals[-1] >= 0.9 * y.loc[2019])
+    streak = 0
+    for i in range(len(vals) - 1, 0, -1):
+        if vals[i] > vals[i - 1] * 1.001:
+            streak += 1
+        elif pra and recovered and idx[i] in (2020, 2021):
+            continue
+        else:
+            break
+    return streak
+
+
+def dgr_window(yearly, n=GROWTH_DGR_WINDOW):
+    """Dividend-growth CAGR over the last min(n, available) complete years (default ~15y)."""
+    if yearly is None:
+        return None
+    y = yearly[yearly > 0]
+    if len(y) < 4:
+        return None
+    k = min(n, len(y) - 1)
+    old, new = float(y.iloc[-1 - k]), float(y.iloc[-1])
+    if old <= 0 or k < 1:
+        return None
+    return (new / old) ** (1 / k) - 1
+
+
 def apply_growth_gates(df):
-    """Gate for the dividend-GROWTH screen. Assumes apply_gates has already run (lane,
-    mcap_usd, quality_pass present). Targets low-payout fast growers, not income."""
+    """Gate for the dividend-GROWTH (blue-chip aristocrat) screen. Assumes apply_gates has run
+    (lane, mcap_usd, quality_pass). Strict record/streak from div_annual (no general COVID
+    bridge, PRA-forced names excepted), long-window DGR, payout cap. Floor is the BROAD $2bn;
+    the dashboard size toggle filters the blue-chip $15bn subset client-side."""
+    df = df.copy()
+
     def ggate(r):
         f = []
-        if _safe(r.get("mcap_usd"), 0) < GROWTH_MIN_MCAP: f.append("mcap")
+        yearly = _annual_from_store(r.get("div_annual"))
+        pra = r["ticker"] in PRA_OVERRIDE
+        streak = strict_raise_streak(yearly, pra)
+        uncut = strict_uncut10(yearly, pra)
+        dgr = dgr_window(yearly)
+        if _safe(r.get("mcap_usd"), 0) < GROWTH_MIN_MCAP_BROAD: f.append("mcap")
         y = _safe(r.get("yield_pct"))
         if y is None or not (GROWTH_YIELD_MIN <= y <= GROWTH_YIELD_MAX): f.append("yield_band")
-        if _safe(r.get("div_years"), 0) < MIN_DIV_YEARS: f.append("record<10y")
-        if not r.get("uncut_10y"): f.append("cut_in_10y")
-        if _safe(r.get("div_streak"), 0) < GROWTH_MIN_STREAK: f.append(f"streak<{GROWTH_MIN_STREAK}y")
-        dgr = _safe(r.get("div_cagr5"), _safe(r.get("div_growth")))
+        if not uncut: f.append("cut_in_10y")
+        if streak < GROWTH_MIN_STREAK: f.append(f"streak<{GROWTH_MIN_STREAK}y")
         if dgr is None or dgr < GROWTH_MIN_DGR: f.append("low_growth")
         po = _safe(r.get("payout_ratio"))
         if po is None or po > GROWTH_PAYOUT_CAP or po <= 0: f.append("payout")
         if not r.get("quality_pass"): f.append("quality")
-        return ",".join(f)
-    df = df.copy()
-    df["gfails"] = df.apply(ggate, axis=1)
+        return pd.Series({"gfails": ",".join(f), "gstreak": int(streak),
+                          "gdgr": (round(dgr * 100, 1) if dgr is not None else None)})
+
+    res = df.apply(ggate, axis=1)
+    df["gfails"], df["gstreak"], df["gdgr"] = res["gfails"], res["gstreak"], res["gdgr"]
     df["knife"] = df.apply(knife_flag, axis=1)
     return df
 
 
+def _growth_qf(r):
+    """Quality factor for the growth score (0.6..1.0) from ROIC (lane A) or ROE."""
+    q = _safe(r.get("roic")) if r.get("lane") == "A" else _safe(r.get("roe"))
+    if q is None:
+        return 0.8
+    return min(max(0.6 + 0.4 * (q / 0.15), 0.6), 1.0)
+
+
 def rank_growth(df):
-    """Rank growth survivors by the Chowder number (net yield + 5y dividend-growth CAGR, the
-    standard dividend-growth metric and a Gordon total-return proxy), weighted by raise-streak
-    length so a long proven grower outranks a short one with the same Chowder."""
+    """Rank by a QUALITY-COMPOUNDER score that puts length and quality over rate, the
+    Coca-Cola archetype: score = raise-streak (the dominant, length term) + a quality-adjusted
+    capped-Chowder bonus (net yield + sustainable growth, growth capped so a rebound/catch-up
+    rate cannot win). A 25-year steady compounder outranks a 7-year fast one."""
     s = df[df["gfails"] == ""].copy()
     s["wht"] = s["ticker"].map(lambda t: WHT_BY_COUNTRY.get(country(t), 0.20))
     s["net_yield"] = (s["yield_pct"] * (1 - s["wht"])).round(2)
-    s["dgr5"] = (pd.to_numeric(s["div_cagr5"], errors="coerce") * 100).round(1)
-    s["chowder"] = (s["net_yield"] + s["dgr5"]).round(2)
-    s["streak_cred"] = s["div_streak"].map(
-        lambda v: 0.7 + 0.3 * min(_safe(v, 0) / GROWTH_STREAK_FULL, 1.0))
-    s["growth_score"] = (s["chowder"] * s["streak_cred"]).round(2)
-    return s.sort_values("growth_score", ascending=False)
+    s["capped_dgr"] = s["gdgr"].map(lambda v: min(_safe(v, 0.0), GROWTH_DGR_CAP * 100))
+    s["chowder"] = (s["net_yield"] + s["capped_dgr"]).round(1)
+    s["qf"] = s.apply(_growth_qf, axis=1)
+    s["quality_score"] = (s["gstreak"].clip(upper=GROWTH_STREAK_SCORE_CAP)
+                          + s["chowder"] * s["qf"]).round(1)
+    return s.sort_values("quality_score", ascending=False)
 
 
 # -------------------------------- CLI --------------------------------

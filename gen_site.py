@@ -97,17 +97,13 @@ for _, r in df.iterrows():
         "ovr": bool(ovr_map.get(t)),
     })
 
-# ---- dividend-growth screen (second tab) ----
-dg = S.apply_gates(pd.DataFrame(rows))            # for lane / quality_pass / mcap_usd
-dg = S.apply_growth_gates(dg)
+# ---- dividend-growth screen (second tab): blue-chip aristocrat shape ----
+dg = S.apply_gates(pd.DataFrame(rows))            # for lane / quality_pass / mcap_usd / roic
+dg = S.apply_growth_gates(dg)                     # strict streak/record + long DGR from div_annual
 dg["country"] = dg["ticker"].map(country)
-g_ranked = S.rank_growth(dg)
-g_chowder = dict(zip(g_ranked["ticker"], g_ranked["chowder"]))
-g_score = dict(zip(g_ranked["ticker"], g_ranked["growth_score"]))
-g_nety = dict(zip(g_ranked["ticker"], g_ranked["net_yield"]))
 
 
-def _safe_pct(v, d=1):
+def _safe_pct(v, d=0):
     try:
         if v is None or pd.isna(v):
             return None
@@ -121,28 +117,27 @@ for _, r in dg.iterrows():
     t = r["ticker"]
     wht = S.WHT_BY_COUNTRY.get(S.country(t), 0.20)
     y = r.get("yield_pct")
-    nety = g_nety.get(t)
-    if nety is None and y is not None and not pd.isna(y):
-        nety = round(float(y) * (1 - wht), 2)
-    dgr5 = _safe_pct(r.get("div_cagr5"), 1)
-    chow = g_chowder.get(t)
-    if chow is None and nety is not None and dgr5 is not None:
-        chow = round(nety + dgr5, 1)
-    gsc = g_score.get(t)
-    if gsc is None and chow is not None:
-        strk = r.get("div_streak") or 0
-        gsc = round(chow * (0.7 + 0.3 * min(strk / S.GROWTH_STREAK_FULL, 1.0)), 1)
+    nety = round(float(y) * (1 - wht), 2) if (y is not None and not pd.isna(y)) else None
+    dgr = r.get("gdgr")                            # long-window DGR % (strict, 2019-aware)
+    dgr = None if (dgr is None or pd.isna(dgr)) else float(dgr)
+    streak = int(r["gstreak"]) if pd.notna(r.get("gstreak")) else 0
+    chow = round(nety + min(dgr, S.GROWTH_DGR_CAP * 100), 1) if (nety is not None and dgr is not None) else None
+    qf = S._growth_qf(r)
+    gsc = round(min(streak, S.GROWTH_STREAK_SCORE_CAP) + chow * qf, 1) if chow is not None else None
+    mcap_usd = r.get("mcap_usd")
     gtable.append({
         "ticker": t, "name": (r.get("name") or "")[:32], "country": r["country"],
         "sector": r.get("sector") or "",
         "yield": num(r.get("yield_pct")), "nety": num(nety, 2),
-        "dgr5": dgr5, "streak": r.get("div_streak"),
+        "dgr": num(dgr, 1), "streak": streak,
         "payout": _safe_pct(r.get("payout_ratio"), 0),
         "chowder": num(chow, 1), "gscore": num(gsc, 1),
         "knife": r.get("knife") or "",
+        "mcap": round(float(mcap_usd) / 1e9, 1) if (mcap_usd and not pd.isna(mcap_usd)) else None,
         "pass": r["gfails"] == "", "gfails": r["gfails"],
     })
 n_gsurv = int((dg["gfails"] == "").sum())
+n_gblue = int(((dg["gfails"] == "") & (pd.to_numeric(dg["mcap_usd"], errors="coerce") >= S.GROWTH_MIN_MCAP_BLUE)).sum())
 
 # sensitivity (relative to the 3% income baseline)
 base_top = list(ranked3["ticker"].head(10))
@@ -200,4 +195,4 @@ html = DOC.read_text().replace("{{SCRAPE}}", scrape_date)\
     .replace("{{DATA_GROWTH}}", json.dumps(gtable))
 (DOCS / "index.html").write_text(html)
 print(f"wrote {DOCS/'index.html'} ({n_surv}/{n_univ} income survivors, "
-      f"{n_gsurv} growth survivors, scraped {scrape_date})")
+      f"{n_gsurv} growth survivors / {n_gblue} blue-chip, scraped {scrape_date})")
