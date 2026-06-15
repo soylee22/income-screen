@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gold Screen, Core Dividend Recipe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090806;--bg2:#0f0d0a;--panel:#13110d;--hair:rgba(212,175,55,.16);--hair2:rgba(212,175,55,.30);
+--ink:#F4EFE4;--ink2:#C3BBA8;--muted:#867C66;--gold:#D4AF37;--gold2:#F3E2A6;--golddim:rgba(212,175,55,.12);
+--pass:#8FBF8A;--bad:#D08B6B;--mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace;
+--sans:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;
+-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background:radial-gradient(1100px 480px at 80% -10%,rgba(212,175,55,.08),transparent 60%)}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:34px 24px 70px}
+header{border-bottom:1px solid var(--hair);padding-bottom:20px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+text-transform:uppercase;color:var(--gold);font-weight:600}
+h1{font-size:30px;font-weight:700;margin:14px 0 6px;letter-spacing:-.01em;
+background:linear-gradient(92deg,#F3E2A6,#D4AF37 60%,#B8923A);-webkit-background-clip:text;background-clip:text;
+-webkit-text-fill-color:transparent}
+.sub{color:var(--ink2);font-size:14.5px;max-width:760px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px}
+.chip{font-family:var(--mono);font-size:11.5px;color:var(--gold2);background:var(--golddim);
+border:1px solid var(--hair2);border-radius:20px;padding:6px 13px;letter-spacing:.02em}
+.meta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em;margin-top:14px;
+display:flex;gap:18px;flex-wrap:wrap}
+.meta b{color:var(--gold)}
+.field{display:flex;align-items:center;gap:9px;margin:20px 0 10px;background:var(--bg2);
+border:1px solid var(--hair);border-radius:9px;padding:9px 13px;max-width:380px}
+.field input{flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:14px}
+.tablewrap{overflow-x:auto;border:1px solid var(--hair);border-radius:11px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:980px}
+thead th{position:sticky;top:0;background:#15120c;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+text-transform:uppercase;color:var(--gold);font-weight:600;text-align:right;padding:13px 12px;cursor:pointer;
+border-bottom:1px solid var(--hair2);white-space:nowrap}
+thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4),thead th:nth-child(5){text-align:left}
+thead th:hover{color:var(--gold2)}
+tbody td{padding:11px 12px;text-align:right;border-bottom:1px solid rgba(212,175,55,.07);white-space:nowrap;font-size:13.5px}
+tbody td:nth-child(2),tbody td:nth-child(3),tbody td:nth-child(4),tbody td:nth-child(5){text-align:left}
+tbody tr:hover{background:rgba(212,175,55,.05)}
+.rank{color:var(--muted);font-family:var(--mono);font-size:12px}
+.tkr{font-weight:700;color:var(--gold2)}
+.nm{color:var(--ink)}.sec,.ctry{color:var(--ink2);font-size:12.5px}
+.chwd{font-weight:700;color:var(--gold)}
+.pos{color:var(--pass)}.neg{color:var(--bad)}
+footer{margin-top:22px;color:var(--muted);font-size:11.5px;font-family:var(--mono);letter-spacing:.03em}
+footer a{color:var(--gold)}
+</style></head>
+<body><div class="wrap">
+<header>
+<div class="brand"><span>&#9733;</span> Gold Screen &middot; Core Dividend Recipe</div>
+<h1>Covered. Large. Growing. Paid for decades.</h1>
+<p class="sub">A single, strict screen: large-cap companies paying a covered, decent dividend that they have both <b>raised</b> for years and <b>paid</b> for over a decade. No yield traps, no loss-makers, no missing data. Ordered by yield plus dividend growth.</p>
+<div class="chips">
+<span class="chip">Market cap &gt; $10bn</span>
+<span class="chip">Yield 3&ndash;7% (indicated)</span>
+<span class="chip">Payout 0&ndash;75%</span>
+<span class="chip">&ge;6y continuous growth</span>
+<span class="chip">&ge;10y continuous payout</span>
+<span class="chip">complete data only</span>
+</div>
+<div class="meta"><span><b>29</b> companies pass</span><span>data <b>2026-06-15</b></span><span>built 2026-06-15</span><span><a href="index.html">full screen &amp; methodology &rarr;</a></span></div>
+</header>
+<div class="field">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#867C66" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+<input id="q" placeholder="search ticker / name / sector / country">
+</div>
+<div class="tablewrap"><table id="t"><thead><tr>
+<th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
+<th data-k="country">Ctry</th><th data-k="sector">Sector</th>
+<th data-k="mcap" title="Market cap, $bn">$bn</th>
+<th data-k="yield" title="Indicated dividend yield">Yld%</th>
+<th data-k="nety" title="After withholding tax">Net%</th>
+<th data-k="payout" title="Dividend payout ratio">Pay%</th>
+<th data-k="cg" title="Consecutive years of dividend increases">Grw y</th>
+<th data-k="cp" title="Years paying a dividend">Pay y</th>
+<th data-k="dgr" title="Dividend-growth CAGR over ~15 years">DGR%</th>
+<th data-k="chowder" title="Net yield + dividend-growth CAGR">Chwd</th>
+</tr></thead><tbody id="tb"></tbody></table></div>
+<footer>Research tool, not advice. Past dividend behaviour does not guarantee future payments. &middot; tools/income-screen</footer>
+</div>
+<script>
+const D=[{"ticker": "TSCO", "name": "Tractor Supply Company", "country": "US", "sector": "Consumer Cyclical", "mcap": 16.4, "yield": 3.07, "nety": 2.61, "payout": 46.0, "cg": 15, "cp": 16, "dgr": 26.2, "chowder": 28.8}, {"ticker": "RF", "name": "Regions Financial Corporation", "country": "US", "sector": "Financial Services", "mcap": 25.0, "yield": 3.62, "nety": 3.08, "payout": 43.0, "cg": 13, "cp": 40, "dgr": 24.2, "chowder": 27.3}, {"ticker": "AES", "name": "The AES Corporation", "country": "US", "sector": "Utilities", "mcap": 10.5, "yield": 4.79, "nety": 4.07, "payout": 37.0, "cg": 13, "cp": 17, "dgr": 20.7, "chowder": 24.8}, {"ticker": "USB", "name": "U.S. Bancorp", "country": "US", "sector": "Financial Services", "mcap": 91.8, "yield": 3.5, "nety": 2.98, "payout": 43.0, "cg": 15, "cp": 37, "dgr": 16.7, "chowder": 19.7}, {"ticker": "HPQ", "name": "HP Inc.", "country": "US", "sector": "Technology", "mcap": 23.1, "yield": 4.75, "nety": 4.04, "payout": 44.0, "cg": 15, "cp": 61, "dgr": 14.9, "chowder": 18.9}, {"ticker": "CMCSA", "name": "Comcast Corporation", "country": "US", "sector": "Communication Services", "mcap": 87.5, "yield": 5.39, "nety": 4.58, "payout": 26.0, "cg": 6, "cp": 31, "dgr": 13.7, "chowder": 18.3}, {"ticker": "BBY", "name": "Best Buy Co., Inc.", "country": "US", "sector": "Consumer Cyclical", "mcap": 16.6, "yield": 4.89, "nety": 4.16, "payout": 71.0, "cg": 8, "cp": 23, "dgr": 13.4, "chowder": 17.6}, {"ticker": "PRU", "name": "Prudential Financial, Inc.", "country": "US", "sector": "Financial Services", "mcap": 37.7, "yield": 5.16, "nety": 4.39, "payout": 56.0, "cg": 17, "cp": 24, "dgr": 10.9, "chowder": 15.3}, {"ticker": "TGT", "name": "Target Corporation", "country": "US", "sector": "Consumer Defensive", "mcap": 61.4, "yield": 3.43, "nety": 2.92, "payout": 60.0, "cg": 42, "cp": 43, "dgr": 11.9, "chowder": 14.8}, {"ticker": "ADP", "name": "Automatic Data Processing, Inc.", "country": "US", "sector": "Technology", "mcap": 90.4, "yield": 3.01, "nety": 2.56, "payout": 60.0, "cg": 23, "cp": 43, "dgr": 11.6, "chowder": 14.2}, {"ticker": "WEC", "name": "WEC Energy Group, Inc.", "country": "US", "sector": "Utilities", "mcap": 37.0, "yield": 3.36, "nety": 2.86, "payout": 73.0, "cg": 22, "cp": 40, "dgr": 10.5, "chowder": 13.4}, {"ticker": "MKC", "name": "McCormick & Company, Incorporat", "country": "US", "sector": "Consumer Defensive", "mcap": 13.2, "yield": 3.92, "nety": 3.33, "payout": 30.0, "cg": 27, "cp": 40, "dgr": 8.6, "chowder": 11.9}, {"ticker": "ES", "name": "Eversource Energy (D/B/A)", "country": "US", "sector": "Utilities", "mcap": 25.8, "yield": 4.59, "nety": 3.9, "payout": 65.0, "cg": 26, "cp": 42, "dgr": 7.5, "chowder": 11.4}, {"ticker": "MFC.TO", "name": "MANULIFE FIN", "country": "CA", "sector": "Financial Services", "mcap": 67.1, "yield": 3.28, "nety": 2.79, "payout": 52.0, "cg": 12, "cp": 26, "dgr": 8.5, "chowder": 11.3}, {"ticker": "BATS.L", "name": "BRITISH AMERICAN TOBACCO PLC OR", "country": "UK", "sector": "Consumer Defensive", "mcap": 134.7, "yield": 5.29, "nety": 5.29, "payout": 69.0, "cg": 7, "cp": 31, "dgr": 5.7, "chowder": 11.0}, {"ticker": "CMS", "name": "CMS Energy Corporation", "country": "US", "sector": "Utilities", "mcap": 22.7, "yield": 3.1, "nety": 2.63, "payout": 61.0, "cg": 18, "cp": 34, "dgr": 8.3, "chowder": 10.9}, {"ticker": "SGRO.L", "name": "SEGRO PLC ORD 10P", "country": "UK", "sector": "Real Estate", "mcap": 13.7, "yield": 4.14, "nety": 4.14, "payout": 73.0, "cg": 11, "cp": 33, "dgr": 5.5, "chowder": 9.6}, {"ticker": "SLF.TO", "name": "SUN LIFE FINANCIAL INC.", "country": "CA", "sector": "Financial Services", "mcap": 42.4, "yield": 3.44, "nety": 2.92, "payout": 67.0, "cg": 11, "cp": 26, "dgr": 6.1, "chowder": 9.0}, {"ticker": "DTE", "name": "DTE Energy Company", "country": "US", "sector": "Utilities", "mcap": 30.7, "yield": 3.11, "nety": 2.64, "payout": 74.0, "cg": 16, "cp": 64, "dgr": 6.0, "chowder": 8.6}, {"ticker": "FTS.TO", "name": "FORTIS INC", "country": "CA", "sector": "Utilities", "mcap": 29.0, "yield": 3.18, "nety": 2.7, "payout": 74.0, "cg": 20, "cp": 31, "dgr": 5.5, "chowder": 8.2}, {"ticker": "EVRG", "name": "Evergy, Inc.", "country": "US", "sector": "Utilities", "mcap": 19.3, "yield": 3.32, "nety": 2.82, "payout": 72.0, "cg": 22, "cp": 41, "dgr": 5.3, "chowder": 8.1}, {"ticker": "VZ", "name": "Verizon Communications Inc.", "country": "US", "sector": "Communication Services", "mcap": 200.9, "yield": 5.88, "nety": 5.0, "payout": 67.0, "cg": 21, "cp": 42, "dgr": 2.6, "chowder": 7.6}, {"ticker": "UU.L", "name": "UNITED UTILITIES GROUP PLC ORD ", "country": "UK", "sector": "Utilities", "mcap": 12.9, "yield": 4.08, "nety": 4.08, "payout": 61.0, "cg": 14, "cp": 33, "dgr": 3.1, "chowder": 7.2}, {"ticker": "PEG", "name": "Public Service Enterprise Group", "country": "US", "sector": "Utilities", "mcap": 39.7, "yield": 3.36, "nety": 2.86, "payout": 57.0, "cg": 14, "cp": 46, "dgr": 4.1, "chowder": 7.0}, {"ticker": "PNW", "name": "Pinnacle West Capital Corporati", "country": "US", "sector": "Utilities", "mcap": 12.5, "yield": 3.52, "nety": 2.99, "payout": 67.0, "cg": 14, "cp": 37, "dgr": 3.6, "chowder": 6.6}, {"ticker": "NOVN.SW", "name": "NOVARTIS N", "country": "CH", "sector": "Healthcare", "mcap": 292.5, "yield": 3.03, "nety": 1.97, "payout": 66.0, "cg": 28, "cp": 29, "dgr": 3.5, "chowder": 5.5}, {"ticker": "DUK", "name": "Duke Energy Corporation (Holdin", "country": "US", "sector": "Utilities", "mcap": 97.4, "yield": 3.41, "nety": 2.9, "payout": 65.0, "cg": 19, "cp": 43, "dgr": 2.5, "chowder": 5.4}, {"ticker": "ED", "name": "Consolidated Edison, Inc.", "country": "US", "sector": "Utilities", "mcap": 39.7, "yield": 3.23, "nety": 2.75, "payout": 58.0, "cg": 37, "cp": 64, "dgr": 2.4, "chowder": 5.2}, {"ticker": "EOAN.DE", "name": "E.ON SE                       N", "country": "DE", "sector": "Utilities", "mcap": 55.2, "yield": 3.1, "nety": 2.29, "payout": 42.0, "cg": 8, "cp": 26, "dgr": -6.5, "chowder": -4.2}];let sk="chwd",sa=false;
+const tb=document.getElementById('tb'),q=document.getElementById('q');
+function c(v){return v===null||v===undefined||v===""?'<span style="color:#5a5346">.</span>':v;}
+function render(){
+const term=q.value.toLowerCase();
+let rows=D.filter(r=>!term||(r.ticker+' '+r.name+' '+r.sector+' '+r.country).toLowerCase().includes(term));
+rows.sort((a,b)=>{let x=a[sk],y=b[sk];if(typeof x==="string")return sa?x.localeCompare(y):y.localeCompare(x);return sa?x-y:y-x;});
+let rk=0;
+tb.innerHTML=rows.map(r=>`<tr>
+<td class="rank">${++rk}</td><td class="tkr">${r.ticker}</td><td class="nm">${r.name}</td>
+<td class="ctry">${r.country}</td><td class="sec">${r.sector}</td>
+<td>${r.mcap}</td><td>${r.yield}%</td><td>${r.nety}%</td>
+<td>${r.payout}%</td><td>${r.cg}</td><td>${r.cp}</td>
+<td class="${r.dgr<0?'neg':'pos'}">${r.dgr}%</td><td class="chwd">${r.chowder}</td></tr>`).join('');
+}
+document.querySelectorAll('#t th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sk===k)sa=!sa;else{sk=k;sa=false;}render();});
+q.oninput=render;render();
+</script>
+</body></html>

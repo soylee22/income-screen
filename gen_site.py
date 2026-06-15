@@ -14,6 +14,111 @@ HERE = Path(__file__).parent
 DOCS = HERE / "docs"
 DOCS.mkdir(exist_ok=True)
 
+CORE_TEMPLATE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gold Screen, Core Dividend Recipe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090806;--bg2:#0f0d0a;--panel:#13110d;--hair:rgba(212,175,55,.16);--hair2:rgba(212,175,55,.30);
+--ink:#F4EFE4;--ink2:#C3BBA8;--muted:#867C66;--gold:#D4AF37;--gold2:#F3E2A6;--golddim:rgba(212,175,55,.12);
+--pass:#8FBF8A;--bad:#D08B6B;--mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace;
+--sans:'Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;
+-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background:radial-gradient(1100px 480px at 80% -10%,rgba(212,175,55,.08),transparent 60%)}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:34px 24px 70px}
+header{border-bottom:1px solid var(--hair);padding-bottom:20px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+text-transform:uppercase;color:var(--gold);font-weight:600}
+h1{font-size:30px;font-weight:700;margin:14px 0 6px;letter-spacing:-.01em;
+background:linear-gradient(92deg,#F3E2A6,#D4AF37 60%,#B8923A);-webkit-background-clip:text;background-clip:text;
+-webkit-text-fill-color:transparent}
+.sub{color:var(--ink2);font-size:14.5px;max-width:760px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 4px}
+.chip{font-family:var(--mono);font-size:11.5px;color:var(--gold2);background:var(--golddim);
+border:1px solid var(--hair2);border-radius:20px;padding:6px 13px;letter-spacing:.02em}
+.meta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em;margin-top:14px;
+display:flex;gap:18px;flex-wrap:wrap}
+.meta b{color:var(--gold)}
+.field{display:flex;align-items:center;gap:9px;margin:20px 0 10px;background:var(--bg2);
+border:1px solid var(--hair);border-radius:9px;padding:9px 13px;max-width:380px}
+.field input{flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:14px}
+.tablewrap{overflow-x:auto;border:1px solid var(--hair);border-radius:11px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:980px}
+thead th{position:sticky;top:0;background:#15120c;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+text-transform:uppercase;color:var(--gold);font-weight:600;text-align:right;padding:13px 12px;cursor:pointer;
+border-bottom:1px solid var(--hair2);white-space:nowrap}
+thead th:nth-child(2),thead th:nth-child(3),thead th:nth-child(4),thead th:nth-child(5){text-align:left}
+thead th:hover{color:var(--gold2)}
+tbody td{padding:11px 12px;text-align:right;border-bottom:1px solid rgba(212,175,55,.07);white-space:nowrap;font-size:13.5px}
+tbody td:nth-child(2),tbody td:nth-child(3),tbody td:nth-child(4),tbody td:nth-child(5){text-align:left}
+tbody tr:hover{background:rgba(212,175,55,.05)}
+.rank{color:var(--muted);font-family:var(--mono);font-size:12px}
+.tkr{font-weight:700;color:var(--gold2)}
+.nm{color:var(--ink)}.sec,.ctry{color:var(--ink2);font-size:12.5px}
+.chwd{font-weight:700;color:var(--gold)}
+.pos{color:var(--pass)}.neg{color:var(--bad)}
+footer{margin-top:22px;color:var(--muted);font-size:11.5px;font-family:var(--mono);letter-spacing:.03em}
+footer a{color:var(--gold)}
+</style></head>
+<body><div class="wrap">
+<header>
+<div class="brand"><span>&#9733;</span> Gold Screen &middot; Core Dividend Recipe</div>
+<h1>Covered. Large. Growing. Paid for decades.</h1>
+<p class="sub">A single, strict screen: large-cap companies paying a covered, decent dividend that they have both <b>raised</b> for years and <b>paid</b> for over a decade. No yield traps, no loss-makers, no missing data. Ordered by yield plus dividend growth.</p>
+<div class="chips">
+<span class="chip">Market cap &gt; $10bn</span>
+<span class="chip">Yield 3&ndash;7% (indicated)</span>
+<span class="chip">Payout 0&ndash;75%</span>
+<span class="chip">&ge;6y continuous growth</span>
+<span class="chip">&ge;10y continuous payout</span>
+<span class="chip">complete data only</span>
+</div>
+<div class="meta"><span><b>{{N}}</b> companies pass</span><span>data <b>{{SCRAPE}}</b></span><span>built {{GENERATED}}</span><span><a href="index.html">full screen &amp; methodology &rarr;</a></span></div>
+</header>
+<div class="field">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#867C66" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+<input id="q" placeholder="search ticker / name / sector / country">
+</div>
+<div class="tablewrap"><table id="t"><thead><tr>
+<th data-k="rank">#</th><th data-k="ticker">Ticker</th><th data-k="name">Name</th>
+<th data-k="country">Ctry</th><th data-k="sector">Sector</th>
+<th data-k="mcap" title="Market cap, $bn">$bn</th>
+<th data-k="yield" title="Indicated dividend yield">Yld%</th>
+<th data-k="nety" title="After withholding tax">Net%</th>
+<th data-k="payout" title="Dividend payout ratio">Pay%</th>
+<th data-k="cg" title="Consecutive years of dividend increases">Grw y</th>
+<th data-k="cp" title="Years paying a dividend">Pay y</th>
+<th data-k="dgr" title="Dividend-growth CAGR over ~15 years">DGR%</th>
+<th data-k="chowder" title="Net yield + dividend-growth CAGR">Chwd</th>
+</tr></thead><tbody id="tb"></tbody></table></div>
+<footer>Research tool, not advice. Past dividend behaviour does not guarantee future payments. &middot; tools/income-screen</footer>
+</div>
+<script>
+const D={{DATA}};let sk="chwd",sa=false;
+const tb=document.getElementById('tb'),q=document.getElementById('q');
+function c(v){return v===null||v===undefined||v===""?'<span style="color:#5a5346">.</span>':v;}
+function render(){
+const term=q.value.toLowerCase();
+let rows=D.filter(r=>!term||(r.ticker+' '+r.name+' '+r.sector+' '+r.country).toLowerCase().includes(term));
+rows.sort((a,b)=>{let x=a[sk],y=b[sk];if(typeof x==="string")return sa?x.localeCompare(y):y.localeCompare(x);return sa?x-y:y-x;});
+let rk=0;
+tb.innerHTML=rows.map(r=>`<tr>
+<td class="rank">${++rk}</td><td class="tkr">${r.ticker}</td><td class="nm">${r.name}</td>
+<td class="ctry">${r.country}</td><td class="sec">${r.sector}</td>
+<td>${r.mcap}</td><td>${r.yield}%</td><td>${r.nety}%</td>
+<td>${r.payout}%</td><td>${r.cg}</td><td>${r.cp}</td>
+<td class="${r.dgr<0?'neg':'pos'}">${r.dgr}%</td><td class="chwd">${r.chowder}</td></tr>`).join('');
+}
+document.querySelectorAll('#t th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sk===k)sa=!sa;else{sk=k;sa=false;}render();});
+q.oninput=render;render();
+</script>
+</body></html>
+"""
+
 
 def country(tk):
     for sfx, c in [(".L", "UK"), (".PA", "FR"), (".DE", "DE"), (".SW", "CH"), (".HK", "HK"),
@@ -201,3 +306,38 @@ html = DOC.read_text().replace("{{SCRAPE}}", scrape_date)\
 (DOCS / "index.html").write_text(html)
 print(f"wrote {DOCS/'index.html'} ({n_surv}/{n_univ} income survivors, "
       f"{n_gsurv} growth survivors / {n_gblue} blue-chip, scraped {scrape_date})")
+
+# ============ standalone GOLD core screen: Lee's exact validated recipe, own page ============
+CORE = dict(mcap=10e9, ymin=3.0, ymax=7.0, paymax=0.75, cont_growth=6, cont_pay=10)
+
+
+def _ok(v):
+    return v is not None and not (isinstance(v, float) and pd.isna(v))
+
+
+core_rows = []
+for _, r in df.iterrows():                              # df carries mcap_usd, country, store fields
+    mc, y, po, yrs = r.get("mcap_usd"), r.get("yield_pct"), r.get("payout_ratio"), r.get("div_years")
+    ann = S._annual_from_store(r.get("div_annual"))
+    cg = S.strict_raise_streak(ann, pra=False)          # pure continuous growth, matches TradingView
+    dgr = S.dgr_window(ann)
+    if not (_ok(mc) and _ok(y) and _ok(po) and _ok(yrs) and dgr is not None):
+        continue                                        # no missing data: drop incomplete rows
+    if not (mc > CORE["mcap"] and CORE["ymin"] <= y <= CORE["ymax"] and 0 < po <= CORE["paymax"]
+            and cg >= CORE["cont_growth"] and yrs >= CORE["cont_pay"]):
+        continue
+    wht = S.WHT_BY_COUNTRY.get(S.country(r["ticker"]), 0.20)
+    nety = round(y * (1 - wht), 2)
+    dgrp = round(dgr * 100, 1)
+    core_rows.append({
+        "ticker": r["ticker"], "name": (r.get("name") or "")[:34], "country": r["country"],
+        "sector": r.get("sector") or "", "mcap": round(mc / 1e9, 1),
+        "yield": round(y, 2), "nety": nety, "payout": round(po * 100, 0),
+        "cg": int(cg), "cp": int(yrs), "dgr": dgrp, "chowder": round(nety + dgrp, 1),
+    })
+core_rows.sort(key=lambda x: -x["chowder"])
+core_html = CORE_TEMPLATE.replace("{{SCRAPE}}", scrape_date)\
+    .replace("{{N}}", str(len(core_rows))).replace("{{GENERATED}}", date.today().isoformat())\
+    .replace("{{DATA}}", json.dumps(core_rows))
+(DOCS / "core.html").write_text(core_html)
+print(f"wrote {DOCS/'core.html'} ({len(core_rows)} core-recipe names)")
