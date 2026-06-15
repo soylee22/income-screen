@@ -39,7 +39,18 @@ MIN_ROA_A = 0.05                          # ...or ROA floor (robust fallback)
 MIN_ROE_B = 0.08                          # lane B (financials/REITs): ROE floor
 MIN_ROE_FALLBACK = 0.10                  # lane A last-resort if ROIC & ROA both missing
 MIN_FCF_COVER = 1.3                       # FCF / dividends paid, lane A
+MIN_FFO_COVER = 1.05                      # FFO / dividends paid, lane R (REITs). ROE is a
+# category error for REITs: property depreciation crushes GAAP net income (so ROE), even
+# though buildings rarely lose real value. NAREIT's standard is FFO (net income + real-estate
+# D&A). A REIT that covers its dividend out of FFO is durable; ROE >= 8% would reject almost
+# every quality REIT (Realty Income's ROE is ~3%).
 MAX_NET_LEVERAGE = 4.0                    # (total debt - cash) / EBITDA, lane A
+# Just-MAIN BDC inclusion (Lee): a BDC is a leveraged portfolio of private-company loans/equity,
+# scored on ROE (which IS meaningful for a BDC, unlike a REIT) but it needs a lower size floor
+# and a wider yield band than blue-chip operating cos. P/NAV (price/book) shown for the premium.
+BDC_TICKERS = {"MAIN"}
+BDC_MIN_MCAP = 2e9
+BDC_YIELD_MAX = 12.0
 MOM_12M_MIN = -0.10                       # falling-knife: drop names down >10% over 12m
 MOM_VS_200D_MIN = -0.12                   # or sitting >12% below their 200-day average
 MIN_NI_CAGR = -0.10                       # earnings-freefall gate (lane A): drop only names whose
@@ -267,6 +278,18 @@ def fcf_from_statement(cf):
     return fcf, divs_paid
 
 
+def ffo_from_statements(inc, cf):
+    """REIT Funds From Operations ~= net income + real-estate D&A (NAREIT standard, gains on
+    sale ignored). Returns (ffo, dividends_paid). The correct dividend-durability metric for a
+    REIT, in place of ROE/net income which depreciation distorts."""
+    ni = _row(inc, "Net Income", "Net Income Common Stockholders")
+    da = _row(cf, "Depreciation And Amortization", "Depreciation Amortization Depletion",
+              "Depreciation Amortization Depletion Non Cash Adjustment", "Depreciation")
+    dp = _row(cf, "Cash Dividends Paid")
+    ffo = (ni + da) if (ni is not None and da is not None) else None
+    return ffo, (abs(dp) if dp is not None else None)
+
+
 def roic_from_statements(inc, bs):
     """ROIC = EBIT*(1-tax) / invested capital; gross profitability = GP/assets; cash."""
     roic = gross_prof = cash = None
@@ -291,9 +314,14 @@ def fetch_one(symbol):
     sector = info.get("sector")
     yearly = annual_dividends(t)
     years, uncut, cagr5 = div_record(yearly)
-    fcf = divs_paid_actual = roic = gross_prof = cash = None
+    fcf = divs_paid_actual = roic = gross_prof = cash = ffo = None
     norm_margin = cur_margin = rev_cagr = ni_cagr = None
-    if sector not in FINANCIAL_SECTORS:                  # operating cos: pull statements
+    if sector == "Real Estate":                          # REITs: pull statements for FFO
+        try:
+            ffo, divs_paid_actual = ffo_from_statements(t.income_stmt, t.cashflow)
+        except Exception as e:
+            print(f"    {symbol} FFO fetch partial: {e}", file=sys.stderr)
+    elif sector not in FINANCIAL_SECTORS:                # operating cos: pull statements
         try:
             inc = t.income_stmt
             fcf, divs_paid_actual = fcf_from_statement(t.cashflow)
@@ -316,6 +344,7 @@ def fetch_one(symbol):
         "rec_norm_margin": norm_margin, "rec_cur_margin": cur_margin,
         "rev_cagr": rev_cagr, "ni_cagr": ni_cagr,
         "fcf": fcf, "divs_paid_actual": divs_paid_actual, "cash": cash,
+        "ffo": ffo, "price_to_book": info.get("priceToBook"),
         "total_debt": info.get("totalDebt"), "ebitda": info.get("ebitda"),
         "div_years": years, "uncut_10y": uncut, "gfc_ratio": gfc_ratio(yearly),
         "div_cagr5": cagr5, "div_growth": robust_div_growth(yearly),
@@ -366,7 +395,8 @@ def fetch_universe(tickers, max_age_days):
 EXPECTED_COLS = ["ticker", "name", "sector", "currency", "mcap_local", "yield_pct",
                  "yield_5y_avg", "payout_ratio", "roe", "roa", "op_margin", "gross_margin",
                  "roic", "gross_prof", "rec_norm_margin", "rec_cur_margin",
-                 "rev_cagr", "ni_cagr", "fcf", "divs_paid_actual", "cash", "total_debt",
+                 "rev_cagr", "ni_cagr", "fcf", "divs_paid_actual", "cash", "ffo", "price_to_book",
+                 "total_debt",
                  "ebitda", "div_years", "uncut_10y", "gfc_ratio", "div_cagr5", "div_growth",
                  "div_streak",
                  "earnings_growth", "revenue_growth", "trailing_pe", "forward_pe", "beta",
@@ -379,7 +409,8 @@ def apply_gates(df):
             df[c] = None
     rates = fx_rates(df["currency"])
     df["mcap_usd"] = df.apply(lambda r: (r["mcap_local"] or 0) * (rates.get(r["currency"]) or 0), axis=1)
-    df["lane"] = df["sector"].map(lambda s: "B" if s in FINANCIAL_SECTORS else "A")
+    df["lane"] = df["sector"].map(
+        lambda s: "R" if s == "Real Estate" else ("B" if s in FINANCIAL_SECTORS else "A"))
     # FCF yield + sector medians (for cross-sectional, evidence-backed cheapness)
     df["fcf_yield"] = df.apply(
         lambda r: r["fcf"] / r["mcap_local"] if (r.get("fcf") and r.get("mcap_local")) else None, axis=1)
@@ -391,6 +422,11 @@ def apply_gates(df):
     df["sec_med_fcfy"] = df["sector"].map(med_fy)
 
     def quality_ok(r):
+        if r["lane"] == "R":                                 # REITs: FFO dividend coverage
+            ffo, dp = _safe(r.get("ffo")), _safe(r.get("divs_paid_actual"))
+            if ffo is None or not dp or dp <= 0:
+                return False                                  # no FFO data = cannot verify, reject
+            return ffo / dp >= MIN_FFO_COVER
         if r["lane"] == "A":
             roic, roa, roe = r.get("roic"), r.get("roa"), r.get("roe")
             opm = r.get("op_margin")
@@ -405,9 +441,12 @@ def apply_gates(df):
 
     def gate(r):
         fails = []
-        if r["mcap_usd"] < MIN_MCAP_USD: fails.append("mcap")
+        is_bdc = r["ticker"] in BDC_TICKERS
+        mcap_floor = BDC_MIN_MCAP if is_bdc else MIN_MCAP_USD
+        ymax = BDC_YIELD_MAX if is_bdc else YIELD_MAX
+        if r["mcap_usd"] < mcap_floor: fails.append("mcap")
         y = r["yield_pct"]
-        if y is None or not (YIELD_MIN <= y <= YIELD_MAX): fails.append("yield_band")
+        if y is None or not (YIELD_MIN <= y <= ymax): fails.append("yield_band")
         if r["div_years"] < MIN_DIV_YEARS: fails.append("record<10y")
         if not r["uncut_10y"]: fails.append("cut_in_10y")
         if not quality_ok(r): fails.append("quality")
@@ -488,6 +527,8 @@ def rank(survivors, mode="expret"):
     df["g_raw"] = df.apply(_sustainable_growth, axis=1)
 
     def quality_factor(r):                               # 0.5..1.0, scales positive growth
+        if r["lane"] == "R":                             # REIT ROE is meaningless; stay neutral
+            return 0.7
         q = r.get("roic") if (r["lane"] == "A" and pd.notna(r.get("roic"))) else r.get("roe")
         q = _safe(q)
         return 0.7 if q is None else min(max(0.5 + 0.5 * (q / QUAL_HAIRCUT_REF), 0.5), 1.0)
@@ -552,12 +593,13 @@ def main():
 
     ranked["roic%"] = (pd.to_numeric(ranked["roic"], errors="coerce") * 100).round(0)
     ranked["gsust%"] = (pd.to_numeric(ranked["g_sust"], errors="coerce") * 100).round(1)
-    cols = ["ticker", "name", "sector", "net_yield", "roic%", "gsust%", "reversion",
+    cols = ["ticker", "name", "sector", "lane", "net_yield", "roic%", "gsust%", "reversion",
             "exp_return", "div_years", "div_streak"]
     pd.set_option("display.width", 210)
     print(f"\n=== SURVIVORS {len(ranked)}/{len(df)}  [mode: {args.mode}]  "
           f"(mcap>=${MIN_MCAP_USD/1e9:.0f}bn, yield {YIELD_MIN}-{YIELD_MAX}%, 10y uncut, "
-          f"ROIC/ROA quality, FCF cover, net leverage, trend) ===")
+          f"quality: lane A ROIC/ROA + FCF cover + leverage, lane B ROE, lane R FFO cover; "
+          f"trend) ===")
     print("exp_return = net_yield + quality-haircut growth + cross-sectional reversion (pp)\n")
     print(ranked[cols].head(args.top).round(2).to_string(index=False))
     print(f"\nBUY CANDIDATES (top 3, {args.mode}): {', '.join(ranked['ticker'].head(3))}")

@@ -24,7 +24,8 @@ SOURCES = {
 }
 EXTRAS = ["NESN.SW", "NOVN.SW", "ROG.SW", "ZURN.SW", "ABBN.SW",   # CH majors
           "0941.HK", "0883.HK", "2628.HK",                          # HK income names
-          "BTI", "MO", "PM", "IMBBY", "JAPAY"]                       # tobacco (Lee's picks)
+          "BTI", "MO", "PM", "IMBBY", "JAPAY",                       # tobacco (Lee's picks)
+          "MAIN"]                                                    # BDC (Lee's pick; BDC lane)
 
 
 def constituents(url, suffix):
